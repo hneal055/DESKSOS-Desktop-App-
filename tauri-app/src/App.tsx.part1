@@ -1,0 +1,66 @@
+import { useState, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import "./styles.css";
+
+// ==================== MODULE 1: QUICK DIAGNOSTICS DASHBOARD ====================
+function DashboardModule() {
+  const [systemInfo, setSystemInfo] = useState<any>(null);
+  const [networkHealth, setNetworkHealth] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    load Dashboard();
+  }, []);
+
+  const loadDashboard = async () => {
+    try {
+      const [sysInfo, netHealth] = await Promise.all([
+        invoke("get_system_info"),
+        invoke("check_network_health"),
+      ]);
+      setSystemInfo(sysInfo);
+      setNetworkHealth(netHealth);
+    } catch (err) {
+      console.error("Dashboard load failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return <div className="text-center p-8 text-gray-400">Loading diagnostics...</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h2 className="text-2xl font-bold text-blue-400 mb-4">System Health</h2>
+        <div className="grid grid-cols-2 gap-4">
+          <InfoCard label="Computer Name" value={systemInfo?.computer_name} />
+          <InfoCard label="IP Address" value={systemInfo?.ip_address} />
+          <InfoCard label="OS Version" value={systemInfo?.os_version} />
+          <InfoCard label="Uptime" value={systemInfo?.uptime} />
+          <InfoCard label="Disk Space" value={systemInfo?.disk_space_gb} />
+          <InfoCard label="Memory" value={systemInfo?.memory_gb} />
+          <InfoCard label="Domain" value={systemInfo?.domain} />
+          <InfoCard label="Logged In User" value={systemInfo?.logged_in_user} />
+        </div>
+      </div>
+
+      <div className="bg-gray-800 rounded-lg p-6">
+        <h2 className="text-2xl font-bold text-green-400 mb-4">Network Health</h2>
+        <div className="space-y-2">
+          <StatusIndicator label="Gateway Ping" status={networkHealth?.gateway_ping} />
+          <StatusIndicator label="DNS (1.1.1.1)" status={networkHealth?.dns_ping} />
+          <StatusIndicator label="Internet (8.8.8.8)" status={networkHealth?.internet_ping} />
+          <div className="flex items-center justify-between">
+            <span className="text-gray-300">VPN Status:</span>
+            <span className={`font-semibold ${networkHealth?.vpn_status === "Disconnected" ? "text-red-400" : "text-green-400"}`}>
+              {networkHealth?.vpn_status}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default App;

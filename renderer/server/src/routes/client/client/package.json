@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "socket.io-client": "^4.5.4",
+    "axios": "^1.6.2",
+    "react-query": "^3.39.3",
+    "jwt-decode": "^4.0.0",
+    "localforage": "^1.10.0"
+  }
+}

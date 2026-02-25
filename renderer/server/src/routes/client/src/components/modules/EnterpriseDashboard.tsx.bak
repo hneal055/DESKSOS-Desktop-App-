@@ -1,0 +1,472 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useQuery, useQueryClient } from 'react-query';
+import { 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  AlertTriangle,
+  Activity
+} from 'lucide-react';
+import { api } from '../../services/api';
+import { toast } from 'sonner';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
+
+interface TeamMember {
+  id: string;
+  name: string;
+  status: 'online' | 'away' | 'busy' | 'offline';
+  currentTickets: number;
+  resolvedToday: number;
+  avatar?: string;
+}
+
+interface QueueMetrics {
+  new: number;
+  open: number;
+  inProgress: number;
+  pending: number;
+  resolved: number;
+  overdue: number;
+}
+
+interface MetricItem {
+  priority: string;
+  total: number;
+}
+
+interface DailyTrend {
+  date: string;
+  count: number;
+}
+
+interface SLAMetrics {
+  critical: number;
+  high: number;
+  medium: number;
+  low: number;
+}
+
+interface ActivityFeed {
+  id: string;
+  user: string;
+  action: string;
+  ticketId: string;
+  status: string;
+  timestamp: string;
+}
+
+const EnterpriseDashboard = () => {
+  const queryClient = useQueryClient();
+  const [teamStatus, setTeamStatus] = useState<TeamMember[]>([]);
+  const [queueMetrics, setQueueMetrics] = useState<QueueMetrics>({
+    new: 0,
+    open: 0,
+    inProgress: 0,
+    pending: 0,
+    resolved: 0,
+    overdue: 0
+  });
+  const [currentTime, setCurrentTime] = useState<string>(new Date().toLocaleTimeString());
+  const [maxQueueValue, setMaxQueueValue] = useState(50);
+
+  // Fetch dashboard data
+  const { data: dashboardData, isLoading, error: dashboardError } = useQuery(
+    'dashboard',
+    () => api.getDashboardData(),
+    {
+      refetchInterval: 30000,
+      onSuccess: (data) => {
+        setTeamStatus(data.data.teamStatus);
+        setQueueMetrics(data.data.queueMetrics);
+        const maxVal = Math.max(
+          data.data.queueMetrics.new,
+          data.data.queueMetrics.inProgress,
+          data.data.queueMetrics.pending,
+          data.data.queueMetrics.overdue,
+          50
+        );
+        setMaxQueueValue(maxVal);
+      }
+    }
+  );
+
+  // Fetch ticket metrics
+  const { data: metricsData, error: metricsError } = useQuery(
+    'ticketMetrics',
+    () => api.getTicketMetrics(),
+    {
+      refetchInterval: 60000
+    }
+  );
+
+  // Update timestamp periodically
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Setup event listeners
+  useEffect(() => {
+    const handleTicketUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { ticketId } = customEvent.detail;
+      toast.info(`Ticket ${ticketId} was updated`);
+      queryClient.invalidateQueries('dashboard');
+      queryClient.invalidateQueries('ticketMetrics');
+    };
+
+    const handleUserStatusChange = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { userId, status } = customEvent.detail;
+      setTeamStatus(prev => 
+        prev.map(member => 
+          member.id === userId ? { ...member, status } : member
+        )
+      );
+    };
+
+    window.addEventListener('ticket-updated', handleTicketUpdate);
+    window.addEventListener('user-status-change', handleUserStatusChange);
+
+    return () => {
+      window.removeEventListener('ticket-updated', handleTicketUpdate);
+      window.removeEventListener('user-status-change', handleUserStatusChange);
+    };
+  }, [queryClient]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (dashboardError) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <p className="text-error font-medium">Failed to load dashboard</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {dashboardError instanceof Error ? dashboardError.message : 'Unknown error'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const slaMetrics = metricsData?.data?.slaMetrics || { critical: 98, high: 87, medium: 94, low: 99 } as SLAMetrics;
+  const activityFeed = metricsData?.data?.activityFeed || [] as ActivityFeed[];
+  const dailyTrends = metricsData?.data?.dailyTrends || [] as DailyTrend[];
+  const priorityMetrics = metricsData?.data?.metrics || [] as MetricItem[];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Enterprise Dashboard</h1>
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1">
+            <div className="w-2 h-2 bg-success rounded-full animate-pulse"></div>
+            <span className="text-sm text-slate-600">Live</span>
+          </div>
+          <span className="text-sm text-slate-500">Updated {currentTime}</span>
+        </div>
+      </div>
+
+      {/* Queue Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">New</span>
+            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">Urgent</span>
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{queueMetrics.new}</div>
+          <div className="text-xs text-slate-500 mt-1">+3 from yesterday</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">Open</span>
+            <Activity className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{queueMetrics.open}</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">In Progress</span>
+            <Clock className="w-4 h-4 text-slate-400" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{queueMetrics.inProgress}</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">Pending</span>
+            <AlertTriangle className="w-4 h-4 text-warning" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{queueMetrics.pending}</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">Resolved</span>
+            <CheckCircle className="w-4 h-4 text-success" />
+          </div>
+          <div className="text-2xl font-bold text-slate-900">{queueMetrics.resolved}</div>
+        </div>
+
+        <div className="bg-white rounded-xl p-4 border border-slate-200">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm text-slate-600">Overdue</span>
+            <AlertTriangle className="w-4 h-4 text-error" />
+          </div>
+          <div className="text-2xl font-bold text-error">{queueMetrics.overdue}</div>
+        </div>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ticket Trend Chart */}
+        <div className="lg:col-span-2 bg-white rounded-xl p-6 border border-slate-200">
+          <h2 className="text-lg font-semibold mb-4">Ticket Trends</h2>
+          {dailyTrends.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={dailyTrends}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="date" stroke="#64748b" />
+                  <YAxis stroke="#64748b" />
+                  <Tooltip />
+                  <Area 
+                    type="monotone" 
+                    dataKey="count" 
+                    stroke="#3b82f6" 
+                    fill="#3b82f6" 
+                    fillOpacity={0.2} 
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              No trend data available
+            </div>
+          )}
+        </div>
+
+        {/* Ticket Distribution by Priority */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200">
+          <h2 className="text-lg font-semibold mb-4">By Priority</h2>
+          {priorityMetrics.length > 0 ? (
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={priorityMetrics}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="total"
+                    nameKey="priority"
+                  >
+                    {priorityMetrics.map((entry: MetricItem, index: number) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-slate-400">
+              No priority data available
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Team Status & Queue */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Team Online Status */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Team Status</h2>
+            <span className="text-sm text-slate-500">
+              {teamStatus.filter(m => m.status === 'online').length} online
+            </span>
+          </div>
+          <div className="space-y-3">
+            {teamStatus.length > 0 ? (
+              teamStatus.map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="relative">
+                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                        {member.avatar ? (
+                          <img 
+                            src={member.avatar} 
+                            alt={member.name} 
+                            className="w-8 h-8 rounded-full"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        ) : (
+                          <span className="text-sm font-medium text-primary-600">
+                            {member.name.split(' ').map(n => n[0]).join('')}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${
+                        member.status === 'online' ? 'bg-success' :
+                        member.status === 'away' ? 'bg-warning' :
+                        member.status === 'busy' ? 'bg-error' : 'bg-slate-400'
+                      }`}></div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-sm">{member.name}</div>
+                      <div className="text-xs text-slate-500">
+                        {member.currentTickets} tickets · {member.resolvedToday} resolved today
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded-full ${
+                    member.status === 'online' ? 'bg-success/10 text-success' :
+                    member.status === 'away' ? 'bg-warning/10 text-warning' :
+                    member.status === 'busy' ? 'bg-error/10 text-error' :
+                    'bg-slate-100 text-slate-600'
+                  }`}>
+                    {member.status}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <p className="text-slate-500 text-sm">No team members available</p>
+            )}
+          </div>
+        </div>
+
+        {/* Current Queue */}
+        <div className="bg-white rounded-xl p-6 border border-slate-200">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Current Queue</h2>
+            <span className="text-sm text-slate-500">Auto-refresh 30s</span>
+          </div>
+          
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-600">New Tickets</span>
+                <span className="font-medium">{queueMetrics.new}</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-primary-500" style={{ width: `${(queueMetrics.new / maxQueueValue) * 100}%` }}></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-600">In Progress</span>
+                <span className="font-medium">{queueMetrics.inProgress}</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-warning" style={{ width: `${(queueMetrics.inProgress / maxQueueValue) * 100}%` }}></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-600">Pending</span>
+                <span className="font-medium">{queueMetrics.pending}</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-info" style={{ width: `${(queueMetrics.pending / maxQueueValue) * 100}%` }}></div>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-600">Overdue</span>
+                <span className="font-medium text-error">{queueMetrics.overdue}</span>
+              </div>
+              <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                <div className="h-full bg-error" style={{ width: `${(queueMetrics.overdue / maxQueueValue) * 100}%` }}></div>
+              </div>
+            </div>
+          </div>
+
+          {/* SLA Summary */}
+          <div className="mt-6 pt-4 border-t border-slate-200">
+            <h3 className="text-sm font-medium mb-3">SLA Compliance</h3>
+            <div className="flex items-center justify-between">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-success">{slaMetrics.critical}%</div>
+                <div className="text-xs text-slate-500">Critical</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-warning">{slaMetrics.high}%</div>
+                <div className="text-xs text-slate-500">High</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-slate-900">{slaMetrics.medium}%</div>
+                <div className="text-xs text-slate-500">Medium</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-slate-900">{slaMetrics.low}%</div>
+                <div className="text-xs text-slate-500">Low</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Activity Feed */}
+      <div className="bg-white rounded-xl p-6 border border-slate-200">
+        <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
+        <div className="space-y-3">
+          {activityFeed.length > 0 ? (
+            activityFeed.map((activity) => (
+              <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-slate-50 rounded-lg transition-colors">
+                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Users className="w-4 h-4 text-primary-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm">
+                    <span className="font-medium">{activity.user}</span> {activity.action}{' '}
+                    <span className="font-mono text-primary-600">{activity.ticketId}</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">{activity.timestamp}</p>
+                </div>
+                <span className="text-xs bg-success/10 text-success px-2 py-1 rounded-full">
+                  {activity.status}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-500 text-sm">No recent activity</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default EnterpriseDashboard;
