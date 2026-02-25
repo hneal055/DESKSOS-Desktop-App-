@@ -3,6 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
+use std::os::windows::process::CommandExt;
 use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -184,7 +185,8 @@ async fn run_custom_powershell(command: String) -> Result<String, String> {
 // Helper function to execute PowerShell commands
 fn run_powershell(command: &str) -> Result<String, String> {
     let output = Command::new("powershell")
-        .args(&["-NoProfile", "-NonInteractive", "-Command", command])
+        .args(&["-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", command])
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
         .output()
         .map_err(|e| format!("Failed to execute PowerShell: {}", e))?;
 
@@ -218,6 +220,12 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+
+
+
+
+
 
 
 
