@@ -4,7 +4,6 @@
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::os::windows::process::CommandExt;
-use tauri::Manager;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SystemInfo {
