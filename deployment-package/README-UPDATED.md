@@ -217,5 +217,40 @@ Internal use only. Not for redistribution.
 
 ---
 
+## Pre-Deployment Validation
+
+Run the validation script to ensure your system meets all requirements:
+
+```powershell
+.\scripts\DeskSOS-Validation.ps1
+```
+
 **Created:** February 24, 2026  
 **Updated:** February 25, 2026
+
+4. **Integrate into CI/CD** - If you have a deployment pipeline, call this script as a pre-flight check
+
+5. **Reference in setup guides** - Link to it in `BACKEND_SETUP.md` or deployment guides
+
+The script now provides comprehensive diagnostics for system health, network, disk space, services, memory, and DeskSOS configuration - making it valuable for troubleshooting and quality assurance.
+
+## 🏗️ Architecture
+
+**Desktop-Only Application (No Server Required)**
+
+```
+┌─────────────────────────────────────┐
+│         React Frontend              │
+│    (Vite + TypeScript + Tailwind)   │
+├─────────────────────────────────────┤
+│         Tauri Runtime               │
+│         (WebView2)                  │
+├─────────────────────────────────────┤
+│         Rust Backend                │
+│   (System APIs + PowerShell)        │
+├─────────────────────────────────────┤
+│       Windows Native APIs           │
+└─────────────────────────────────────┘
+```
+
+**100% Offline** - No web server, database, or internet connection required.
