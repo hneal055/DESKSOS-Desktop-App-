@@ -39,9 +39,9 @@ pub struct ProcessInfo {
 #[tauri::command]
 async fn get_system_info() -> Result<SystemInfo, String> {
     let computer_name = run_powershell("$env:COMPUTERNAME")?;
-    let os_version = run_powershell("(Get-WmiObject -Class Win32_OperatingSystem).Caption + '' - Build '' + (Get-WmiObject -Class Win32_OperatingSystem).BuildNumber")?;
-    let ip_address = run_powershell("(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notlike ''*Loopback*''} | Select-Object -First 1).IPAddress")?;
-    let mac_address = run_powershell("(Get-NetAdapter | Where-Object Status -eq ''Up'' | Select-Object -First 1).MacAddress")?;
+    let os_version = run_powershell("(Get-WmiObject -Class Win32_OperatingSystem).Caption + ' - Build ' + (Get-WmiObject -Class Win32_OperatingSystem).BuildNumber")?;
+    let ip_address = run_powershell("(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notlike '*Loopback*'} | Select-Object -First 1).IPAddress")?;
+    let mac_address = run_powershell("(Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -First 1).MacAddress")?;
     let disk_space = run_powershell("$drive = Get-PSDrive C; \"$([math]::Round($drive.Free/1GB, 2))GB / $([math]::Round(($drive.Used + $drive.Free)/1GB, 2))GB\"")?;
     let memory = run_powershell("\"$([math]::Round((Get-WmiObject -Class Win32_ComputerSystem).TotalPhysicalMemory/1GB, 2))GB\"")?;
     let uptime = run_powershell("$bootTime = (Get-CimInstance -ClassName Win32_OperatingSystem).LastBootUpTime; $uptime = (Get-Date) - $bootTime; \"$($uptime.Days)d $($uptime.Hours)h $($uptime.Minutes)m\"")?;
@@ -64,10 +64,10 @@ async fn get_system_info() -> Result<SystemInfo, String> {
 // COMMAND: Network health check
 #[tauri::command]
 async fn check_network_health() -> Result<NetworkHealth, String> {
-    let gateway_test = run_powershell("Test-Connection -ComputerName (Get-NetRoute -DestinationPrefix ''0.0.0.0/0'').NextHop -Count 1 -Quiet")?;
+    let gateway_test = run_powershell("Test-Connection -ComputerName (Get-NetRoute -DestinationPrefix '0.0.0.0/0').NextHop -Count 1 -Quiet")?;
     let dns_test = run_powershell("Test-Connection -ComputerName 1.1.1.1 -Count 1 -Quiet")?;
     let internet_test = run_powershell("Test-Connection -ComputerName 8.8.8.8 -Count 1 -Quiet")?;
-    let vpn_status = run_powershell("(Get-VpnConnection | Where-Object {$_.ConnectionStatus -eq ''Connected''}).Name")?;
+    let vpn_status = run_powershell("(Get-VpnConnection -ErrorAction SilentlyContinue | Where-Object {$_.ConnectionStatus -eq 'Connected'}).Name")?;
 
     Ok(NetworkHealth {
         gateway_ping: gateway_test.trim() == "True",
@@ -81,20 +81,20 @@ async fn check_network_health() -> Result<NetworkHealth, String> {
 // COMMAND: Flush DNS cache
 #[tauri::command]
 async fn flush_dns() -> Result<String, String> {
-    run_powershell("Clear-DnsClientCache; ''DNS cache cleared successfully''")
+    run_powershell("Clear-DnsClientCache; 'DNS cache cleared successfully'")
 }
 
 // COMMAND: Release and renew IP
 #[tauri::command]
 async fn renew_ip() -> Result<String, String> {
-    run_powershell("ipconfig /release; ipconfig /renew; ''IP address renewed''")?;
+    run_powershell("ipconfig /release; ipconfig /renew; 'IP address renewed'")?;
     Ok("IP address renewed successfully".to_string())
 }
 
 // COMMAND: Reset network stack
 #[tauri::command]
 async fn reset_network() -> Result<String, String> {
-    run_powershell("netsh winsock reset; netsh int ip reset; ''Network stack reset - reboot required''")?;
+    run_powershell("netsh winsock reset; netsh int ip reset; 'Network stack reset - reboot required'")?;
     Ok("Network stack reset. Please reboot for changes to take effect.".to_string())
 }
 
@@ -102,7 +102,7 @@ async fn reset_network() -> Result<String, String> {
 #[tauri::command]
 async fn get_top_processes(limit: usize) -> Result<Vec<ProcessInfo>, String> {
     let output = run_powershell(&format!(
-        "Get-Process | Sort-Object CPU -Descending | Select-Object -First {} | ForEach-Object {{ \"{{}}|{{}}|{{}}|{{}}\".Format($_.Name, $_.Id, $_.CPU, [math]::Round($_.WorkingSet/1MB, 2)) }}",
+        "Get-Process | Sort-Object CPU -Descending | Select-Object -First {} | ForEach-Object {{ \"{{0}}|{{1}}|{{2}}|{{3}}\" -f $_.Name, $_.Id, $_.CPU, [math]::Round($_.WorkingSet/1MB, 2) }}",
         limit
     ))?;
 
@@ -129,7 +129,7 @@ async fn get_top_processes(limit: usize) -> Result<Vec<ProcessInfo>, String> {
 // COMMAND: Kill process by PID
 #[tauri::command]
 async fn kill_process(pid: u32) -> Result<String, String> {
-    run_powershell(&format!("Stop-Process -Id {} -Force; ''Process {} terminated''", pid, pid))
+    run_powershell(&format!("Stop-Process -Id {} -Force; 'Process {} terminated'", pid, pid))
 }
 
 // COMMAND: Clear temp files
@@ -152,7 +152,7 @@ async fn clear_temp_files() -> Result<String, String> {
 // COMMAND: Restart print spooler
 #[tauri::command]
 async fn restart_print_spooler() -> Result<String, String> {
-    run_powershell("Stop-Service -Name Spooler -Force; Start-Sleep -Seconds 2; Start-Service -Name Spooler; ''Print spooler restarted''")?;
+    run_powershell("Stop-Service -Name Spooler -Force; Start-Sleep -Seconds 2; Start-Service -Name Spooler; 'Print spooler restarted'")?;
     Ok("Print spooler restarted successfully".to_string())
 }
 
@@ -218,4 +218,13 @@ pub fn run() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+
+
+
+
+
+
+
+
 

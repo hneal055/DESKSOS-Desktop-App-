@@ -26,6 +26,12 @@ function DashboardModule() {
     }
   };
 
+  const formatStatus = (value: boolean | undefined) => {
+    if (value === true) return "OK";
+    if (value === false) return "Fail";
+    return "Unknown";
+  };
+
   if (loading) return <div className="text-center p-8 text-gray-400">Loading diagnostics...</div>;
 
   return (
@@ -43,9 +49,9 @@ function DashboardModule() {
       <div className="bg-gray-800 rounded-lg p-6">
         <h2 className="text-2xl font-bold text-green-400 mb-4">Network Health</h2>
         <div className="space-y-2 text-gray-300">
-          <div>Gateway: {networkHealth?.gateway_ping}</div>
-          <div>DNS: {networkHealth?.dns_ping}</div>
-          <div>Internet: {networkHealth?.internet_ping}</div>
+          <div>Gateway: {formatStatus(networkHealth?.gateway_ping)}</div>
+          <div>DNS: {formatStatus(networkHealth?.dns_ping)}</div>
+          <div>Internet: {formatStatus(networkHealth?.internet_ping)}</div>
           <div>VPN: {networkHealth?.vpn_status}</div>
         </div>
       </div>
@@ -195,3 +201,9 @@ export default function App() {
     </div>
   );
 }
+
+
+
+
+
+

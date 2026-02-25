@@ -1351,6 +1351,34 @@ Uptime: 12 days, 3 hours, 24 minutes
 
 ---
 
+### Network Health Shows Unknown
+
+**Symptom:** Dashboard → Network Health shows `Unknown` or blank values for Gateway, DNS, or Internet
+
+**Causes and Solutions:**
+
+1. **ICMP blocked by firewall**
+   - DeskSOS uses `Test-Connection` for checks
+   - Verify manually in PowerShell:
+   ```powershell
+   Test-Connection -ComputerName 1.1.1.1 -Count 1
+   ```
+   - If blocked, allow ICMP echo in local firewall or use DNS tests
+
+2. **No default gateway**
+   - Verify route table:
+   ```powershell
+   Get-NetRoute -DestinationPrefix "0.0.0.0/0"
+   ```
+   - If empty, renew IP or fix adapter settings
+
+3. **Restricted network cmdlets**
+   - Run DeskSOS as Administrator and retry
+
+**Note:** VPN status shows `Disconnected` when no active VPN is detected.
+
+---
+
 ### Process List Shows Empty
 
 **Symptom:** Processes module → No processes displayed
@@ -1520,3 +1548,5 @@ Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 10 Name,
 
 *DeskSOS v1.0.0 - Desktop Support Toolkit*  
 *© 2026 DeskSOS Team - Internal Use Only*
+
+
