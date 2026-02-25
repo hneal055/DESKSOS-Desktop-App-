@@ -1,7 +1,7 @@
 # 🛠️ DeskSOS Desktop Support Toolkit - Deployment Package
 
 **Version:** 1.0.0  
-**Build Date:** 2026-02-24  
+**Build Date:** 2026-02-25  
 **Platform:** Windows 10/11 (x64)
 
 ---
@@ -49,6 +49,7 @@ DeskSOS is a native Windows desktop application designed for IT support technici
 - Computer name, IP address, OS version
 - Disk space and memory usage
 - Network connectivity status (Gateway, DNS, Internet, VPN)
+- Status values render as OK/Fail/Unknown (see USER-GUIDE troubleshooting)
 
 **🔧 Fix It Center**
 - One-click network repairs (DNS flush, IP renewal, network reset)
@@ -147,5 +148,10 @@ Internal use only. Not for redistribution.
 
 ---
 
-**Created:** February 24, 2026  
+**Created:** February 25, 2026  
 **Maintainer:** IT Operations Team
+
+
+
+
+
