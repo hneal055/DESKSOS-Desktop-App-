@@ -1015,16 +1015,16 @@ Uptime: 12 days, 3 hours, 24 minutes
 1. PowerShell → Get recent system errors:
    ```powershell
    Get-EventLog -LogName System -EntryType Error -After (Get-Date).AddDays(-1) | 
-     Select-Object TimeGenerated, Source, Message | 
-     Format-Table -AutoSize
+     Select-Object TimeGenerated, EntryType, Source, EventID, Message | 
+     Format-Table -Wrap -AutoSize
    ```
 
 2. Review output for critical errors:
    ```
-   TimeGenerated        Source         Message
-   -------------        ------         -------
-   2/23/2026 2:45 PM   disk           The device, \Device\Harddisk0\DR0, has a bad block
-   2/23/2026 2:47 PM   volmgr         Crash dump initialization failed!
+   TimeGenerated        EntryType Source  EventID Message
+   -------------        --------- ------  ------- -------
+   2/23/2026 2:45 PM    Error     disk    7       The device, \Device\Harddisk0\DR0, has a bad block
+   2/23/2026 2:47 PM    Error     volmgr  161     Crash dump initialization failed!
    ```
 
 3. Copy relevant errors → Paste in ticket
@@ -1548,5 +1548,6 @@ Get-Process | Sort-Object WorkingSet -Descending | Select-Object -First 10 Name,
 
 *DeskSOS v1.0.0 - Desktop Support Toolkit*  
 *© 2026 DeskSOS Team - Internal Use Only*
+
 
 
