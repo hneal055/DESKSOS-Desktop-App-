@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./styles.css";
+import NetworkDiagnostics from "./components/modules/NetworkDiagnostics";
 
 function DashboardModule() {
   const [systemInfo, setSystemInfo]: any = useState(null);
@@ -177,6 +178,7 @@ export default function App() {
 
   const modules = [
     { id: "dashboard", name: "🏠 Dashboard", component: <DashboardModule /> },
+    { id: "network", name: "🌐 Network", component: <NetworkDiagnostics /> },
     { id: "fixit", name: "🔧 Fix It", component: <FixItModule /> },
     { id: "processes", name: "📊 Processes", component: <ProcessModule /> },
     { id: "powershell", name: "💻 PowerShell", component: <PowerShellModule /> },
