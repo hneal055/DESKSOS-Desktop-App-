@@ -5,6 +5,9 @@ import Dashboard from "./components/modules/Dashboard";
 import NetworkDiagnostics from "./components/modules/NetworkDiagnostics";
 import EventLog from "./components/modules/EventLog";
 import DiskHealth from "./components/modules/DiskHealth";
+import DiskSpace from "./components/modules/DiskSpace";
+import RecentErrors from "./components/modules/RecentErrors";
+import InstalledSoftware from "./components/modules/InstalledSoftware";
 import WindowsUpdate from "./components/modules/WindowsUpdate";
 import TicketBuilder from "./components/modules/TicketBuilder";
 
@@ -130,6 +133,9 @@ export default function App() {
     { id: "network", name: "🌐 Network", component: <NetworkDiagnostics /> },
     { id: "eventlog", name: "📋 Event Log", component: <EventLog /> },
     { id: "diskhealth", name: "💾 Disk Health", component: <DiskHealth /> },
+    { id: "diskspace", name: "🗂️ Disk Space", component: <DiskSpace /> },
+    { id: "errors", name: "🚨 Errors", component: <RecentErrors /> },
+    { id: "software", name: "📦 Software", component: <InstalledSoftware /> },
     { id: "updates", name: "🔄 Updates", component: <WindowsUpdate /> },
     { id: "ticket", name: "🎫 Ticket", component: <TicketBuilder /> },
     { id: "fixit", name: "🔧 Fix It", component: <FixItModule /> },
