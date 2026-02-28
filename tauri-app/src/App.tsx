@@ -1,68 +1,13 @@
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./styles.css";
+import Dashboard from "./components/modules/Dashboard";
 import NetworkDiagnostics from "./components/modules/NetworkDiagnostics";
 import EventLog from "./components/modules/EventLog";
 import DiskHealth from "./components/modules/DiskHealth";
 import WindowsUpdate from "./components/modules/WindowsUpdate";
 import TicketBuilder from "./components/modules/TicketBuilder";
 
-function DashboardModule() {
-  const [systemInfo, setSystemInfo]: any = useState(null);
-  const [networkHealth, setNetworkHealth]: any = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  const loadDashboard = async () => {
-    try {
-      const [sysInfo, netHealth] = await Promise.all([
-        invoke("get_system_info"),
-        invoke("check_network_health"),
-      ]);
-      setSystemInfo(sysInfo);
-      setNetworkHealth(netHealth);
-    } catch (err) {
-      console.error("Dashboard load failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatStatus = (value: boolean | undefined) => {
-    if (value === true) return "OK";
-    if (value === false) return "Fail";
-    return "Unknown";
-  };
-
-  if (loading) return <div className="text-center p-8 text-gray-400">Loading diagnostics...</div>;
-
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-blue-400 mb-4">System Health</h2>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-gray-700 p-3 rounded"><div className="text-gray-400 text-sm">Computer Name</div><div className="text-white font-semibold">{systemInfo?.computer_name}</div></div>
-          <div className="bg-gray-700 p-3 rounded"><div className="text-gray-400 text-sm">IP Address</div><div className="text-white font-semibold">{systemInfo?.ip_address}</div></div>
-          <div className="bg-gray-700 p-3 rounded"><div className="text-gray-400 text-sm">OS Version</div><div className="text-white font-semibold">{systemInfo?.os_version}</div></div>
-          <div className="bg-gray-700 p-3 rounded"><div className="text-gray-400 text-sm">Uptime</div><div className="text-white font-semibold">{systemInfo?.uptime}</div></div>
-        </div>
-      </div>
-
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-2xl font-bold text-green-400 mb-4">Network Health</h2>
-        <div className="space-y-2 text-gray-300">
-          <div>Gateway: {formatStatus(networkHealth?.gateway_ping)}</div>
-          <div>DNS: {formatStatus(networkHealth?.dns_ping)}</div>
-          <div>Internet: {formatStatus(networkHealth?.internet_ping)}</div>
-          <div>VPN: {networkHealth?.vpn_status}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function FixItModule() {
   const [result, setResult] = useState("");
@@ -181,7 +126,7 @@ export default function App() {
   const [activeModule, setActiveModule] = useState("dashboard");
 
   const modules = [
-    { id: "dashboard", name: "🏠 Dashboard", component: <DashboardModule /> },
+    { id: "dashboard", name: "🏠 Dashboard", component: <Dashboard /> },
     { id: "network", name: "🌐 Network", component: <NetworkDiagnostics /> },
     { id: "eventlog", name: "📋 Event Log", component: <EventLog /> },
     { id: "diskhealth", name: "💾 Disk Health", component: <DiskHealth /> },
