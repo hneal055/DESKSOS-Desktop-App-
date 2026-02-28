@@ -10,6 +10,11 @@ import RecentErrors from "./components/modules/RecentErrors";
 import InstalledSoftware from "./components/modules/InstalledSoftware";
 import WindowsUpdate from "./components/modules/WindowsUpdate";
 import TicketBuilder from "./components/modules/TicketBuilder";
+import NetworkAdapters from "./components/modules/NetworkAdapters";
+import RunningServices from "./components/modules/RunningServices";
+import MemoryConsumers from "./components/modules/MemoryConsumers";
+import DashboardSamples from "./components/modules/DashboardSamples";
+import NetworkFixes from "./components/modules/NetworkFixes";
 
 
 function FixItModule() {
@@ -129,25 +134,30 @@ export default function App() {
   const [activeModule, setActiveModule] = useState("dashboard");
 
   const modules = [
-    { id: "dashboard", name: "🏠 Dashboard", component: <Dashboard /> },
-    { id: "network", name: "🌐 Network", component: <NetworkDiagnostics /> },
-    { id: "eventlog", name: "📋 Event Log", component: <EventLog /> },
-    { id: "diskhealth", name: "💾 Disk Health", component: <DiskHealth /> },
-    { id: "diskspace", name: "🗂️ Disk Space", component: <DiskSpace /> },
-    { id: "errors", name: "🚨 Errors", component: <RecentErrors /> },
-    { id: "software", name: "📦 Software", component: <InstalledSoftware /> },
-    { id: "updates", name: "🔄 Updates", component: <WindowsUpdate /> },
-    { id: "ticket", name: "🎫 Ticket", component: <TicketBuilder /> },
-    { id: "fixit", name: "🔧 Fix It", component: <FixItModule /> },
-    { id: "processes", name: "📊 Processes", component: <ProcessModule /> },
-    { id: "powershell", name: "💻 PowerShell", component: <PowerShellModule /> },
+    { id: "dashboard",  name: "🏠 Dashboard",   component: <Dashboard /> },
+    { id: "network",    name: "🌐 Network",      component: <NetworkDiagnostics /> },
+    { id: "adapters",   name: "🔌 Adapters",     component: <NetworkAdapters /> },
+    { id: "eventlog",   name: "📋 Event Log",    component: <EventLog /> },
+    { id: "errors",     name: "🚨 Errors",       component: <RecentErrors /> },
+    { id: "diskhealth", name: "💾 Disk Health",  component: <DiskHealth /> },
+    { id: "diskspace",  name: "🗂️ Disk Space",  component: <DiskSpace /> },
+    { id: "memory",     name: "🧠 Memory",       component: <MemoryConsumers /> },
+    { id: "processes",  name: "📊 Processes",    component: <ProcessModule /> },
+    { id: "software",   name: "📦 Software",     component: <InstalledSoftware /> },
+    { id: "services",   name: "🧰 Services",     component: <RunningServices /> },
+    { id: "updates",    name: "🔄 Updates",      component: <WindowsUpdate /> },
+    { id: "ticket",     name: "🎫 Ticket",       component: <TicketBuilder /> },
+    { id: "fixit",      name: "🔧 Fix It",       component: <FixItModule /> },
+    { id: "netfixes",   name: "🛠️ Net Fixes",   component: <NetworkFixes /> },
+    { id: "samples",    name: "🎛️ Samples",     component: <DashboardSamples /> },
+    { id: "powershell", name: "💻 PowerShell",   component: <PowerShellModule /> },
   ];
 
   return (
     <div className="flex h-screen bg-gray-900">
-      <div className="w-48 bg-gray-800 p-4 border-r border-gray-700">
-        <h1 className="text-xl font-bold text-blue-400 mb-6">DeskSOS</h1>
-        <div className="space-y-2">
+      <div className="w-48 bg-gray-800 p-4 border-r border-gray-700 flex flex-col overflow-hidden">
+        <h1 className="text-xl font-bold text-blue-400 mb-4 shrink-0">DeskSOS</h1>
+        <div className="space-y-1 overflow-y-auto flex-1">
           {modules.map((mod) => (
             <button type="button" key={mod.id} onClick={() => setActiveModule(mod.id)} className={`w-full text-left px-3 py-2 rounded transition ${activeModule === mod.id ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-700"}`}>{mod.name}</button>
           ))}
