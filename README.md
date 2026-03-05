@@ -5,8 +5,9 @@
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-orange)
 ![Rust](https://img.shields.io/badge/Rust-1.92-orange)
 ![React](https://img.shields.io/badge/React-18.3-61dafb)
+![Mobile](https://img.shields.io/badge/mobile-React%20Native%200.84-61dafb)
 
-Native Windows desktop application for IT support technicians. Built with Tauri (Rust + React), provides system diagnostics, network troubleshooting, process management, and PowerShell automation.
+DeskSOS is a full IT support toolkit — a native Windows desktop application paired with a React Native mobile companion app. The desktop app provides system diagnostics, network troubleshooting, process management, and PowerShell automation. The mobile app extends the toolkit with real-time team chat, asset scanning, and remote queue visibility for technicians on the go.
 
 ## 🎯 Overview
 
@@ -50,6 +51,125 @@ DeskSOS Desktop is a lightweight, native Windows application designed for help d
 - Built-in command validation
 - Output capture and display
 - Administrator permission handling
+
+---
+
+## 📱 DeskSOS Mobile (Companion App)
+
+A React Native mobile application for Android and iOS, designed for IT technicians who need team visibility and asset management away from their desk.
+
+### Mobile Features
+
+#### Dashboard
+
+- Live ticket queue metrics (Open / In Progress / Resolved)
+- Average response time tracking
+- Team member status board (online / away / offline) with active ticket counts
+- Pull-to-refresh
+
+#### Chat
+
+- Real-time team messaging via Socket.IO
+- Channel list with unread badge counts
+- Per-channel message history with timestamps
+
+#### Asset Management
+
+- QR code and barcode scanner (QR, Code-128, Code-39, EAN-13, Data Matrix)
+- Animated scan overlay with manual code entry fallback
+- Asset detail view (type, status, serial number, location, assigned user, maintenance history)
+
+#### Network Info
+
+- Live device network configuration (IPv4, IPv6, gateway, DNS servers, MAC address)
+
+#### Authentication
+
+- JWT-based login and registration
+- Persistent session via AsyncStorage
+- Biometric authentication support
+
+### Mobile Tech Stack
+
+| Layer | Technology |
+| ----- | ---------- |
+| Framework | React Native 0.84 |
+| Language | TypeScript |
+| Navigation | React Navigation 7 (stack + bottom tabs) |
+| State | React Query + Context API |
+| HTTP | Axios |
+| Real-time | Socket.IO client |
+| Camera | React Native Vision Camera |
+| Icons | Ionicons (react-native-vector-icons) |
+| Background | react-native-background-fetch |
+| Notifications | react-native-push-notification |
+
+### Mobile Project Structure
+
+```
+DeskSOSMobile/
+├── src/
+│   ├── config/
+│   │   └── environment.ts        # API base URL config (emulator / device / production)
+│   ├── context/
+│   │   └── AuthContext.tsx       # Auth state + JWT persistence
+│   ├── navigation/
+│   │   ├── RootNavigator.tsx     # Auth vs Main routing
+│   │   ├── AuthNavigator.tsx     # Login / Register stack
+│   │   ├── MainNavigator.tsx     # Bottom tab navigator
+│   │   ├── ChatNavigator.tsx     # Chat stack
+│   │   └── AssetNavigator.tsx    # Asset scanner stack
+│   ├── screens/
+│   │   ├── auth/                 # LoginScreen, RegisterScreen
+│   │   ├── dashboard/            # DashboardScreen
+│   │   ├── chat/                 # ChatListScreen, ChatChannelScreen
+│   │   ├── assets/               # AssetScannerScreen, AssetDetailScreen
+│   │   ├── network/              # NetworkScreen
+│   │   └── profile/              # ProfileScreen
+│   ├── services/
+│   │   ├── api.ts                # Axios instance
+│   │   ├── auth.ts               # Login/register calls
+│   │   ├── dashboard.ts          # Queue/team data
+│   │   ├── chat.ts               # Channel/message calls
+│   │   ├── assets.ts             # Asset lookup by code
+│   │   ├── network.ts            # Network info
+│   │   └── socket.ts             # Socket.IO connection
+│   └── types/
+│       └── index.ts              # Shared TypeScript types
+└── package.json
+```
+
+### Mobile API Targets
+
+Configure the backend target in `src/config/environment.ts`:
+
+```typescript
+// Switch between: 'emulator' | 'device' | 'production'
+const TARGET: Target = 'emulator';
+```
+
+| Target | Enterprise API | Network API |
+| ------ | -------------- | ----------- |
+| `emulator` | `http://10.0.2.2:5000` | `http://10.0.2.2:3000` |
+| `device` | `http://<LAN_IP>:5000` | `http://<LAN_IP>:3000` |
+| `production` | `https://<domain>/api` | `https://<domain>` |
+
+### Mobile Development Setup
+
+**Prerequisites:** Node.js 22+, React Native CLI, Android Studio (Android) or Xcode (iOS)
+
+```bash
+cd DeskSOSMobile
+npm install
+
+# Android
+npm run android
+
+# iOS
+npm run ios
+```
+
+---
 
 ## 🚀 Quick Start
 
