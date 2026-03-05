@@ -1,7 +1,7 @@
 # 🛠️ DeskSOS Desktop Support Toolkit - Deployment Package
 
 **Version:** 1.0.0  
-**Build Date:** 2026-02-25  
+**Build Date:** 2026-02-24  
 **Platform:** Windows 10/11 (x64)
 
 ---
@@ -27,13 +27,17 @@ deployment-package/
 
 ## ⚡ Quick Start
 
+### Installer Options (choose based on deployment method)
+- **MSI:** `DeskSOS_1.0.0_x64_en-US.msi` (recommended for GPO, Intune, and scripted enterprise deployment)
+- **EXE:** `DeskSOS_1.0.0_x64-setup.exe` (recommended for manual single-workstation installs)
+
 ### For IT Administrators (GPO Deployment)
 1. Copy `DeskSOS_1.0.0_x64_en-US.msi` to a network share
 2. Run `GPO-Deployment.ps1` (requires Domain Admin rights)
 3. Link the created GPO to your IT Support OU
 
 ### For Individual Workstations
-1. Run `Manual-Deployment.ps1` as Administrator
+1. Run `Manual-Deployment.ps1` as Administrator (uses the MSI)
 2. Or double-click `DeskSOS_1.0.0_x64-setup.exe`
 
 ---
@@ -49,7 +53,6 @@ DeskSOS is a native Windows desktop application designed for IT support technici
 - Computer name, IP address, OS version
 - Disk space and memory usage
 - Network connectivity status (Gateway, DNS, Internet, VPN)
-- Status values render as OK/Fail/Unknown (see USER-GUIDE troubleshooting)
 
 **🔧 Fix It Center**
 - One-click network repairs (DNS flush, IP renewal, network reset)
@@ -148,10 +151,5 @@ Internal use only. Not for redistribution.
 
 ---
 
-**Created:** February 25, 2026  
+**Created:** February 24, 2026  
 **Maintainer:** IT Operations Team
-
-
-
-
-

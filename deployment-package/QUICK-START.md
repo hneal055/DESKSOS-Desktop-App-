@@ -2,16 +2,20 @@
 
 ## For IT Administrators
 
-### Option 1: Install on Single Workstation (5 minutes)
+### Option 1: Install on Single Workstation (5 minutes, MSI or EXE)
 
 1. **Copy deployment package** to target workstation
-2. **Right-click PowerShell** → Run as Administrator
-3. **Run:**
+2. **Choose installer option:**
+   - **MSI (recommended for managed deployments):** `DeskSOS_1.0.0_x64_en-US.msi`
+   - **EXE (recommended for simple manual install):** `DeskSOS_1.0.0_x64-setup.exe`
+3. **If using MSI, right-click PowerShell** → Run as Administrator
+4. **Run (use the actual folder where you copied the package):**
    ```powershell
-   cd C:\Path\To\deployment-package
+   cd "$env:USERPROFILE\Downloads\deployment-package"
    .\Manual-Deployment.ps1
    ```
-4. **Done!** Launch from desktop shortcut
+5. **If using EXE,** double-click `DeskSOS_1.0.0_x64-setup.exe`
+6. **Done!** Launch from desktop shortcut
 
 ---
 
