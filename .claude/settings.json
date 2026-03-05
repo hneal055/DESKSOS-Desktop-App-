@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Projects/**)",
+      "Bash(docker ps --format \"table {{.Names}}\\\\t{{.Status}}\\\\t{{.Ports}}\")",
+      "Bash(powershell.exe -Command \"Get-Process ''Docker Desktop'' -EA SilentlyContinue | Select-Object Name,Id,CPU\")",
+      "Bash(powershell.exe -NoProfile -Command \"netstat -an | Select-String '':3000|:5000|:8080|:80 ''\")",
+      "Bash(powershell.exe -NoProfile -Command \"netstat -an | findstr ''LISTENING''\")"
+    ]
+  }
+}
