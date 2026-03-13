@@ -1,0 +1,21 @@
+DeskSOSServer/
+├── src/
+│   ├── index.ts                  # Entry — starts both servers
+│   ├── db/index.ts               # node:sqlite schema + seed data
+│   ├── middleware/auth.ts        # JWT verification
+│   ├── enterprise/
+│   │   ├── app.ts                # Express app :5000
+│   │   ├── socket.ts             # Socket.IO (chat real-time)
+│   │   └── routes/
+│   │       ├── auth.ts           # login / register / logout
+│   │       ├── user.ts           # GET /api/user/me
+│   │       ├── dashboard.ts      # team status + queue metrics
+│   │       ├── chat.ts           # channels + messages (broadcasts via socket)
+│   │       └── assets.ts         # list / scan / detail / report issue
+│   └── network/
+│       ├── app.ts                # Express app :3000
+│       └── routes/network.ts     # config / ping / DNS / internet-check
+├── .env.example
+├── .gitignore
+├── package.json                  # no native modules — node:sqlite built-in
+└── tsconfig.json

@@ -102,7 +102,7 @@ A React Native mobile application for Android and iOS, designed for IT technicia
 | Camera | React Native Vision Camera |
 | Icons | Ionicons (react-native-vector-icons) |
 | Background | react-native-background-fetch |
-| Notifications | react-native-push-notification |
+| Notifications | @notifee/react-native |
 
 ### Mobile Project Structure
 
@@ -117,11 +117,13 @@ DeskSOSMobile/
 │   │   ├── RootNavigator.tsx     # Auth vs Main routing
 │   │   ├── AuthNavigator.tsx     # Login / Register stack
 │   │   ├── MainNavigator.tsx     # Bottom tab navigator
+│   │   ├── DashboardNavigator.tsx  # Dashboard → TicketList → TicketDetail stack
 │   │   ├── ChatNavigator.tsx     # Chat stack
 │   │   └── AssetNavigator.tsx    # Asset scanner stack
 │   ├── screens/
 │   │   ├── auth/                 # LoginScreen, RegisterScreen
-│   │   ├── dashboard/            # DashboardScreen
+│   │   ├── dashboard/                # DashboardScreen (tappable metric cards)
+│   │   ├── tickets/                  # TicketListScreen, TicketDetailScreen
 │   │   ├── chat/                 # ChatListScreen, ChatChannelScreen
 │   │   ├── assets/               # AssetScannerScreen, AssetDetailScreen
 │   │   ├── network/              # NetworkScreen
@@ -129,7 +131,8 @@ DeskSOSMobile/
 │   ├── services/
 │   │   ├── api.ts                # Axios instance
 │   │   ├── auth.ts               # Login/register calls
-│   │   ├── dashboard.ts          # Queue/team data
+│   │   ├── dashboard.ts              # Queue metrics + team data
+│   │   ├── tickets.ts                # Ticket list, detail, status update
 │   │   ├── chat.ts               # Channel/message calls
 │   │   ├── assets.ts             # Asset lookup by code
 │   │   ├── network.ts            # Network info
@@ -150,10 +153,23 @@ const TARGET: Target = 'emulator';
 
 | Target | Enterprise API | Network API |
 | ------ | -------------- | ----------- |
-| `emulator` | `http://10.0.2.2:5000` | `http://10.0.2.2:3000` |
-| `device` | `http://<LAN_IP>:5000` | `http://<LAN_IP>:3000` |
+| `emulator` | `http://10.0.2.2:5000` | `http://10.0.2.2:5000` |
+| `device` | `http://<LAN_IP>:5000` | `http://<LAN_IP>:5000` |
 | `production` | `https://<domain>/api` | `https://<domain>` |
 
+### Backend (Node.js/Express API)
+
+The mobile app requires the companion backend running at port 5000. **Always start it from the `backend/` directory** so `dotenv` finds `.env`:
+
+```powershell
+Set-Location C:\Projects\DESKSOS\backend
+node server.js
+# → Listening on http://0.0.0.0:5000
+```
+
+**Seeded credentials:** `admin@desksos.com` / `password123` · `tech@desksos.com` / `password123`
+
+**Seeded data:** 22 tickets (12 open / 7 in-progress / 3 resolved), 4 chat channels, 3 assets.
 ### Mobile Development Setup
 
 **Prerequisites:** Node.js 22+, React Native CLI, Android Studio (Android) or Xcode (iOS)
@@ -259,6 +275,7 @@ See [USER-GUIDE.md](deployment-package/USER-GUIDE.md) for complete documentation
 
 ```
 DESKSOS/
+├── DeskSOSMobile/                # React Native companion app
 ├── tauri-app/                    # Main application
 │   ├── src/                      # React frontend
 │   │   ├── App.tsx              # Main UI component
@@ -269,6 +286,7 @@ DESKSOS/
 │       │   └── main.rs          # Entry point
 │       ├── Cargo.toml           # Rust dependencies
 │       └── tauri.conf.json      # Tauri configuration
+├── backend/                      # Node.js + Express API (port 5000)
 ├── deployment-package/           # Enterprise deployment
 │   ├── DeskSOS_1.0.0_x64_en-US.msi
 │   ├── DeskSOS_1.0.0_x64-setup.exe
