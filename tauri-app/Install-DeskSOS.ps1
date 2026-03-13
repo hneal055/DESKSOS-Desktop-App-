@@ -14,7 +14,7 @@
 
 $ErrorActionPreference = "Stop"
 
-# ── Constants ──────────────────────────────────────────────────────────────────
+# ---- Constants ---------------------------------------------------------------
 $APP_NAME      = "DeskSOS"
 $APP_VERSION   = "1.0.0"
 $ROOT          = Split-Path -Parent $MyInvocation.MyCommand.Path   # tauri-app/
@@ -26,36 +26,35 @@ $BACKEND_DIR   = Join-Path $PROJECT_ROOT "backend"
 $MOBILE_DIR    = Join-Path $PROJECT_ROOT "DeskSOSMobile"
 $DEPLOY_DIR    = Join-Path $PROJECT_ROOT "deployment-package"
 
-# ── UI Helpers ─────────────────────────────────────────────────────────────────
+# ---- UI Helpers --------------------------------------------------------------
 function Show-Header {
     Clear-Host
     Write-Host ""
-    Write-Host "  ╔══════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-    Write-Host "  ║         DeskSOS  v$APP_VERSION  –  Installer & Deployer      ║" -ForegroundColor Cyan
-    Write-Host "  ║         IT Support Toolkit  ·  Full Stack            ║" -ForegroundColor Cyan
-    Write-Host "  ╚══════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+    Write-Host "  +------------------------------------------------------+" -ForegroundColor Cyan
+    Write-Host "  |      DeskSOS  v$APP_VERSION  -  Installer & Deployer        |" -ForegroundColor Cyan
+    Write-Host "  |      IT Support Toolkit  -  Full Stack                |" -ForegroundColor Cyan
+    Write-Host "  +------------------------------------------------------+" -ForegroundColor Cyan
     Write-Host ""
 }
 
 function Show-SectionHeader([string]$title) {
     Write-Host ""
-    Write-Host "  ── $title " -ForegroundColor DarkCyan -NoNewline
-    Write-Host ("─" * [Math]::Max(2, 52 - $title.Length)) -ForegroundColor DarkGray
+    Write-Host "  ---- $title " -ForegroundColor DarkCyan
     Write-Host ""
 }
 
-function Write-Step([string]$msg)  { Write-Host "  ›› $msg" -ForegroundColor Yellow }
-function Write-OK([string]$msg)    { Write-Host "  [✓] $msg" -ForegroundColor Green }
-function Write-Warn([string]$msg)  { Write-Host "  [!] $msg" -ForegroundColor Yellow }
-function Write-Fail([string]$msg)  { Write-Host "  [✗] $msg" -ForegroundColor Red }
-function Write-Info([string]$msg)  { Write-Host "      $msg" -ForegroundColor Gray }
+function Write-Step([string]$msg)  { Write-Host "  >> $msg" -ForegroundColor Yellow }
+function Write-OK([string]$msg)    { Write-Host "  [OK]   $msg" -ForegroundColor Green }
+function Write-Warn([string]$msg)  { Write-Host "  [WARN] $msg" -ForegroundColor Yellow }
+function Write-Fail([string]$msg)  { Write-Host "  [FAIL] $msg" -ForegroundColor Red }
+function Write-Info([string]$msg)  { Write-Host "         $msg" -ForegroundColor Gray }
 function Pause-Screen              { Write-Host ""; Read-Host "  Press Enter to continue" | Out-Null }
 
 function Test-Command([string]$cmd) {
     return $null -ne (Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
-# ── Prerequisite Check ─────────────────────────────────────────────────────────
+# ---- Prerequisite Check ------------------------------------------------------
 function Show-PrereqCheck {
     Show-Header
     Show-SectionHeader "Prerequisite Check"
@@ -78,7 +77,7 @@ function Show-PrereqCheck {
         }
     }
 
-    # Android SDK (optional — mobile only)
+    # Android SDK (optional - mobile only)
     $androidHome = $env:ANDROID_HOME
     if (-not $androidHome) { $androidHome = "$env:LOCALAPPDATA\Android\Sdk" }
     if (Test-Path $androidHome) {
@@ -98,10 +97,10 @@ function Show-PrereqCheck {
     Pause-Screen
 }
 
-# ── Desktop: Build ─────────────────────────────────────────────────────────────
+# ---- Desktop: Build ----------------------------------------------------------
 function Invoke-DesktopBuild {
     Show-Header
-    Show-SectionHeader "Desktop App — Build"
+    Show-SectionHeader "Desktop App - Build"
 
     if (-not (Test-Command "node"))  { Write-Fail "Node.js not found. Install from https://nodejs.org"; Pause-Screen; return }
     if (-not (Test-Command "cargo")) { Write-Fail "Rust not found. Install from https://rustup.rs";    Pause-Screen; return }
@@ -117,22 +116,28 @@ function Invoke-DesktopBuild {
     if ($LASTEXITCODE -ne 0) { Write-Fail "Build failed. See output above."; Pause-Screen; return }
 
     Write-OK "Build complete."
-    Write-Info "MSI:  $MSI_FILE"
-    Write-Info "EXE:  $NSIS_EXE"
+    Write-Info "MSI : $MSI_FILE"
+    Write-Info "EXE : $NSIS_EXE"
     Pause-Screen
 }
 
-# ── Desktop: Install ───────────────────────────────────────────────────────────
+# ---- Desktop: Install --------------------------------------------------------
 function Invoke-DesktopInstall {
     Show-Header
-    Show-SectionHeader "Desktop App — Install"
+    Show-SectionHeader "Desktop App - Install"
 
     $hasNsis = Test-Path $NSIS_EXE
     $hasMsi  = Test-Path $MSI_FILE
 
     # Fall back to deployment-package copies
-    if (-not $hasNsis) { $NSIS_EXE2 = Join-Path $DEPLOY_DIR "DeskSOS_${APP_VERSION}_x64-setup.exe";  if (Test-Path $NSIS_EXE2) { $hasNsis = $true; $NSIS_EXE = $NSIS_EXE2 } }
-    if (-not $hasMsi)  { $MSI_FILE2  = Join-Path $DEPLOY_DIR "DeskSOS_${APP_VERSION}_x64_en-US.msi"; if (Test-Path $MSI_FILE2)  { $hasMsi  = $true; $MSI_FILE  = $MSI_FILE2 } }
+    if (-not $hasNsis) {
+        $alt = Join-Path $DEPLOY_DIR "DeskSOS_${APP_VERSION}_x64-setup.exe"
+        if (Test-Path $alt) { $hasNsis = $true; $NSIS_EXE = $alt }
+    }
+    if (-not $hasMsi) {
+        $alt = Join-Path $DEPLOY_DIR "DeskSOS_${APP_VERSION}_x64_en-US.msi"
+        if (Test-Path $alt)  { $hasMsi  = $true; $MSI_FILE  = $alt }
+    }
 
     if (-not $hasNsis -and -not $hasMsi) {
         Write-Fail "No installer found. Run option [2] to build first."
@@ -143,7 +148,7 @@ function Invoke-DesktopInstall {
     $installer = $null
     if ($hasNsis -and $hasMsi) {
         Write-Host "  Two installer formats available:" -ForegroundColor White
-        Write-Host "    [1] Setup EXE   (recommended — includes uninstaller)"
+        Write-Host "    [1] Setup EXE   (recommended - includes uninstaller)"
         Write-Host "    [2] MSI Package (enterprise / Group Policy deployment)"
         Write-Host ""
         $choice = Read-Host "  Choose [1/2] (default: 1)"
@@ -161,8 +166,8 @@ function Invoke-DesktopInstall {
     try {
         if ($installer -match "\.msi$") {
             $logPath = "$env:TEMP\DeskSOS_Install.log"
-            $args = @("/i", "`"$installer`"", "/quiet", "/norestart", "/l*v", "`"$logPath`"")
-            $proc = Start-Process msiexec.exe -ArgumentList $args -Wait -PassThru
+            $msiArgs = @("/i", "`"$installer`"", "/quiet", "/norestart", "/l*v", "`"$logPath`"")
+            $proc = Start-Process msiexec.exe -ArgumentList $msiArgs -Wait -PassThru
             if ($proc.ExitCode -notin @(0, 1641, 3010)) {
                 Write-Fail "MSI install failed (exit $($proc.ExitCode)). Log: $logPath"
                 Pause-Screen; return
@@ -178,10 +183,10 @@ function Invoke-DesktopInstall {
     Pause-Screen
 }
 
-# ── Backend: Start ─────────────────────────────────────────────────────────────
+# ---- Backend: Start ----------------------------------------------------------
 function Invoke-BackendStart {
     Show-Header
-    Show-SectionHeader "Backend API — Start"
+    Show-SectionHeader "Backend API - Start"
 
     if (-not (Test-Path $BACKEND_DIR)) {
         Write-Fail "backend/ directory not found at: $BACKEND_DIR"
@@ -205,11 +210,9 @@ function Invoke-BackendStart {
     # Verify .env
     $envFile = Join-Path $BACKEND_DIR ".env"
     if (-not (Test-Path $envFile)) {
-        Write-Warn ".env not found — creating default..."
-        @"
-PORT=5000
-JWT_SECRET=desksos-super-secret-jwt-key-change-in-production
-"@ | Set-Content $envFile -Encoding UTF8
+        Write-Warn ".env not found - creating default..."
+        "PORT=5000`nJWT_SECRET=desksos-super-secret-jwt-key-change-in-production" |
+            Set-Content $envFile -Encoding UTF8
         Write-OK ".env created (update JWT_SECRET before production use)."
     } else {
         Write-OK ".env found."
@@ -217,31 +220,27 @@ JWT_SECRET=desksos-super-secret-jwt-key-change-in-production
 
     # Check if already running
     try {
-        $ping = Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 2 -ErrorAction SilentlyContinue
-        Write-Warn "Backend appears to already be running on port 5000."
+        Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 2 -ErrorAction Stop | Out-Null
+        Write-Warn "Backend already running on port 5000."
         Pause-Screen; return
     } catch {}
 
     Write-Step "Starting backend API in background..."
+    $backendDir = $BACKEND_DIR
     $job = Start-Job -ScriptBlock {
         param($dir)
         Set-Location $dir
         node server.js
-    } -ArgumentList $BACKEND_DIR
+    } -ArgumentList $backendDir
 
     Start-Sleep -Seconds 2
 
-    try {
-        Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 3 | Out-Null
-        Write-OK "Backend running on http://localhost:5000 (Job ID: $($job.Id))"
-    } catch {
-        # Socket.IO server may not have /health — just confirm the job is running
-        if ($job.State -eq "Running") {
-            Write-OK "Backend job started (Job ID: $($job.Id)) on port 5000."
-        } else {
-            Write-Fail "Backend job failed to start. Check backend/server.js."
-            Receive-Job $job | Write-Host
-        }
+    if ($job.State -eq "Running") {
+        Write-OK "Backend started (Job ID: $($job.Id)) on port 5000."
+    } else {
+        Write-Fail "Backend job failed to start. Check backend/server.js."
+        Receive-Job $job | Write-Host
+        Pause-Screen; return
     }
 
     Write-Host ""
@@ -254,17 +253,16 @@ JWT_SECRET=desksos-super-secret-jwt-key-change-in-production
     Pause-Screen
 }
 
-# ── Backend: Status ────────────────────────────────────────────────────────────
+# ---- Backend: Status ---------------------------------------------------------
 function Show-BackendStatus {
     Show-Header
-    Show-SectionHeader "Backend API — Status"
+    Show-SectionHeader "Backend API - Status"
 
-    # Test connectivity
     try {
-        $resp = Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 3 -ErrorAction SilentlyContinue
+        Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 3 -ErrorAction Stop | Out-Null
         Write-OK "Backend reachable on http://localhost:5000"
     } catch {
-        Write-Warn "http://localhost:5000 not responding — backend may not be running."
+        Write-Warn "http://localhost:5000 not responding - backend may not be running."
     }
 
     # Show running jobs
@@ -290,7 +288,7 @@ function Show-BackendStatus {
         } catch {
             $code = $_.Exception.Response.StatusCode.value__
             if ($code -eq 401) {
-                Write-OK "$ep  [401 Unauthorized — JWT required ✓]"
+                Write-OK "$ep  [401 - JWT required]"
             } else {
                 Write-Fail "$ep  [$code]"
             }
@@ -300,10 +298,10 @@ function Show-BackendStatus {
     Pause-Screen
 }
 
-# ── Mobile: Setup ──────────────────────────────────────────────────────────────
+# ---- Mobile: Setup -----------------------------------------------------------
 function Invoke-MobileSetup {
     Show-Header
-    Show-SectionHeader "Mobile App — Setup & Build"
+    Show-SectionHeader "Mobile App - Setup and Build"
 
     if (-not (Test-Path $MOBILE_DIR)) {
         Write-Fail "DeskSOSMobile/ not found at: $MOBILE_DIR"
@@ -341,23 +339,27 @@ function Invoke-MobileSetup {
     $choice = Read-Host "  Choice"
     switch ($choice) {
         "1" {
-            Write-Step "Launching Android build..."
+            Write-Step "Launching Android build in new window..."
             Write-Info "Ensure an emulator is running or a device is connected via USB."
-            $env:ANDROID_HOME = $androidHome
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$MOBILE_DIR'; `$env:ANDROID_HOME='$androidHome'; npm run android"
-            Write-OK "Android build launched in a new window."
+            $mobileDir   = $MOBILE_DIR
+            $androidSdk  = $androidHome
+            Start-Process powershell -ArgumentList "-NoExit", "-Command",
+                "Set-Location '$mobileDir'; `$env:ANDROID_HOME='$androidSdk'; npm run android"
+            Write-OK "Android build launched."
         }
         "2" {
             Write-Step "Starting Metro bundler on port 8081..."
-            Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location '$MOBILE_DIR'; npx react-native start --port 8081"
-            Write-OK "Metro launched in a new window."
+            $mobileDir = $MOBILE_DIR
+            Start-Process powershell -ArgumentList "-NoExit", "-Command",
+                "Set-Location '$mobileDir'; npx react-native start --port 8081"
+            Write-OK "Metro launched in new window."
         }
     }
     Pop-Location
     Pause-Screen
 }
 
-# ── Verify All ─────────────────────────────────────────────────────────────────
+# ---- Verify All --------------------------------------------------------------
 function Invoke-VerifyAll {
     Show-Header
     Show-SectionHeader "Full System Verification"
@@ -371,7 +373,7 @@ function Invoke-VerifyAll {
         Write-OK "Desktop app installed  ($([math]::Round($fi.Length/1MB,2)) MB)"
         $results.Add([PSCustomObject]@{ Component="Desktop App"; Status="INSTALLED" })
     } else {
-        Write-Warn "Desktop app not installed at $exePath"
+        Write-Warn "Desktop app not found at $exePath"
         $results.Add([PSCustomObject]@{ Component="Desktop App"; Status="NOT FOUND" })
     }
 
@@ -386,8 +388,10 @@ function Invoke-VerifyAll {
     }
 
     # Registry
-    $reg = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue |
-           Where-Object { $_.DisplayName -like "*DeskSOS*" } | Select-Object -First 1
+    $reg = Get-ItemProperty "HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\*" `
+               -ErrorAction SilentlyContinue |
+           Where-Object { $_.DisplayName -like "*DeskSOS*" } |
+           Select-Object -First 1
     if ($reg) {
         Write-OK "Registry entry: $($reg.DisplayName) $($reg.DisplayVersion)"
         $results.Add([PSCustomObject]@{ Component="Registry"; Status="PRESENT" })
@@ -399,12 +403,12 @@ function Invoke-VerifyAll {
     # Backend API
     try {
         $r = Invoke-WebRequest "http://localhost:5000/dashboard/queue" -TimeoutSec 3 -ErrorAction Stop
-        Write-OK "Backend API responding on port 5000  [$($r.StatusCode)]"
+        Write-OK "Backend API on port 5000  [$($r.StatusCode)]"
         $results.Add([PSCustomObject]@{ Component="Backend API"; Status="RUNNING" })
     } catch {
         $code = $_.Exception.Response.StatusCode.value__
         if ($code -eq 401) {
-            Write-OK "Backend API on port 5000 requires auth [401] ✓"
+            Write-OK "Backend API on port 5000 - auth required [401]"
             $results.Add([PSCustomObject]@{ Component="Backend API"; Status="RUNNING" })
         } else {
             Write-Warn "Backend API not reachable on port 5000"
@@ -415,7 +419,7 @@ function Invoke-VerifyAll {
     # Mobile project
     $mobilePkg = Join-Path $MOBILE_DIR "package.json"
     if (Test-Path $mobilePkg) {
-        $nm = Join-Path $MOBILE_DIR "node_modules"
+        $nm   = Join-Path $MOBILE_DIR "node_modules"
         $deps = if (Test-Path $nm) { "deps installed" } else { "run npm install" }
         Write-OK "Mobile project found  ($deps)"
         $results.Add([PSCustomObject]@{ Component="Mobile App"; Status="PRESENT" })
@@ -425,12 +429,13 @@ function Invoke-VerifyAll {
     }
 
     # Admin check
-    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+                [Security.Principal.WindowsBuiltInRole]::Administrator)
     if ($isAdmin) {
         Write-OK "Running as Administrator"
         $results.Add([PSCustomObject]@{ Component="Admin Rights"; Status="YES" })
     } else {
-        Write-Warn "Standard user — some desktop features limited"
+        Write-Warn "Standard user - some desktop features limited"
         $results.Add([PSCustomObject]@{ Component="Admin Rights"; Status="NO" })
     }
 
@@ -446,36 +451,36 @@ function Invoke-VerifyAll {
     Pause-Screen
 }
 
-# ── GPO / Enterprise Deploy ────────────────────────────────────────────────────
+# ---- Enterprise Deploy -------------------------------------------------------
 function Show-EnterpriseDeploy {
     Show-Header
     Show-SectionHeader "Enterprise Deployment (GPO)"
 
     Write-Host "  The deployment-package/ folder contains:" -ForegroundColor White
     Write-Host ""
-    Write-Host "    GPO-Deployment.ps1      — Domain-wide MSI rollout via Group Policy"
-    Write-Host "    Manual-Deployment.ps1   — Silent install on a single machine"
-    Write-Host "    Verify-Installation.ps1 — Post-install health check"
-    Write-Host "    Uninstall.ps1           — Silent removal"
+    Write-Host "    GPO-Deployment.ps1      - Domain-wide MSI rollout via Group Policy"
+    Write-Host "    Manual-Deployment.ps1   - Silent install on a single machine"
+    Write-Host "    Verify-Installation.ps1 - Post-install health check"
+    Write-Host "    Uninstall.ps1           - Silent removal"
     Write-Host ""
     Write-Host "  Quick reference:" -ForegroundColor Cyan
     Write-Host ""
     Write-Host "    # Single machine (run as Administrator):"
-    Write-Host "    cd `"$DEPLOY_DIR`"" -ForegroundColor Gray
-    Write-Host "    .\Manual-Deployment.ps1" -ForegroundColor Gray
+    Write-Host "    cd `"$DEPLOY_DIR`""                                        -ForegroundColor Gray
+    Write-Host "    .\Manual-Deployment.ps1"                                   -ForegroundColor Gray
     Write-Host ""
     Write-Host "    # Domain-wide GPO rollout:"
-    Write-Host "    .\GPO-Deployment.ps1 \" -ForegroundColor Gray
-    Write-Host "        -NetworkSharePath '\\DC01\Software`$\DeskSOS' \" -ForegroundColor Gray
-    Write-Host "        -OUPath 'OU=IT Support,DC=contoso,DC=com'" -ForegroundColor Gray
+    Write-Host "    .\GPO-Deployment.ps1 \"                                    -ForegroundColor Gray
+    Write-Host "        -NetworkSharePath '\\DC01\Software`$\DeskSOS' \"      -ForegroundColor Gray
+    Write-Host "        -OUPath 'OU=IT Support,DC=contoso,DC=com'"            -ForegroundColor Gray
     Write-Host ""
     Write-Host "    # Verify after deployment:"
-    Write-Host "    .\Verify-Installation.ps1" -ForegroundColor Gray
+    Write-Host "    .\Verify-Installation.ps1"                                 -ForegroundColor Gray
 
     Pause-Screen
 }
 
-# ── Main Menu ──────────────────────────────────────────────────────────────────
+# ---- Main Menu ---------------------------------------------------------------
 function Show-MainMenu {
     Show-Header
 
@@ -486,10 +491,10 @@ function Show-MainMenu {
     Write-Host ""
     Write-Host "  BACKEND API" -ForegroundColor White
     Write-Host "    [4]  Start backend API  (port 5000)"
-    Write-Host "    [5]  Show backend status & test endpoints"
+    Write-Host "    [5]  Show backend status and test endpoints"
     Write-Host ""
     Write-Host "  MOBILE APP" -ForegroundColor White
-    Write-Host "    [6]  Setup & build mobile app  (Android / Metro)"
+    Write-Host "    [6]  Setup and build mobile app  (Android / Metro)"
     Write-Host ""
     Write-Host "  SYSTEM" -ForegroundColor White
     Write-Host "    [7]  Verify full installation"
@@ -498,7 +503,7 @@ function Show-MainMenu {
     Write-Host ""
 }
 
-# ── Entry Point ────────────────────────────────────────────────────────────────
+# ---- Entry Point -------------------------------------------------------------
 do {
     Show-MainMenu
     $choice = Read-Host "  Select option"
