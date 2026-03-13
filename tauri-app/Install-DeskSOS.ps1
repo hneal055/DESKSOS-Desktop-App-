@@ -218,17 +218,34 @@ function Invoke-BackendStart {
         Write-OK ".env found."
     }
 
-    # Check if port 5000 is already in use (TCP probe - works regardless of route)
-    $portInUse = (Test-NetConnection -ComputerName localhost -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue)
-    if ($portInUse) {
-        Write-Warn "Port 5000 is already in use - backend is already running."
-        Write-Info "Use option [5] to verify endpoints."
-        Pause-Screen; return
+    # Stop any existing backend job/process cleanly before starting
+    $existingJob = Get-Job -Name "Backend" -ErrorAction SilentlyContinue
+    if ($existingJob) {
+        Write-Warn "Existing Backend job found (ID $($existingJob.Id), state: $($existingJob.State)) - stopping it..."
+        Stop-Job  $existingJob -ErrorAction SilentlyContinue
+        Remove-Job $existingJob -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 1
+    }
+
+    # Kill any node process still holding port 5000
+    $portOwner = netstat -ano 2>$null | Select-String ":5000 " | ForEach-Object {
+        ($_ -split "\s+")[-1]
+    } | Select-Object -First 1
+    if ($portOwner -and $portOwner -match "^\d+$") {
+        $nodeProc = Get-Process -Id $portOwner -ErrorAction SilentlyContinue
+        if ($nodeProc -and $nodeProc.Name -like "node*") {
+            Write-Warn "Killing stale node process (PID $portOwner) on port 5000..."
+            Stop-Process -Id $portOwner -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+        } elseif ($portOwner -ne "0") {
+            Write-Warn "Port 5000 is held by PID $portOwner ($($nodeProc.Name)) - not a node process. Aborting."
+            Pause-Screen; return
+        }
     }
 
     Write-Step "Starting backend API in background..."
     $backendDir = $BACKEND_DIR
-    $job = Start-Job -ScriptBlock {
+    $job = Start-Job -Name "Backend" -ScriptBlock {
         param($dir)
         Set-Location $dir
         node server.js 2>&1
@@ -237,7 +254,7 @@ function Invoke-BackendStart {
     Start-Sleep -Seconds 3
 
     # Re-check port to confirm server actually bound
-    $portBound = (Test-NetConnection -ComputerName localhost -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue)
+    $portBound = (netstat -ano 2>$null | Select-String ":5000 ") -ne $null
     if ($portBound) {
         Write-OK "Backend started (Job ID: $($job.Id)) on port 5000."
     } else {
@@ -254,7 +271,7 @@ function Invoke-BackendStart {
     Write-Info "  admin@desksos.com / password123"
     Write-Info "  tech@desksos.com  / password123"
     Write-Info ""
-    Write-Info "Stop with:  Stop-Job $($job.Id); Remove-Job $($job.Id)"
+    Write-Info "Stop with:  Stop-Job -Name Backend; Remove-Job -Name Backend"
 
     Pause-Screen
 }
