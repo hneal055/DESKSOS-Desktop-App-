@@ -50,3 +50,12 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('  admin@desksos.com / password123');
   console.log('  tech@desksos.com  / password123');
 });
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error('[DeskSOS] Port ' + PORT + ' is already in use. Stop the existing instance first.');
+    process.exit(1);
+  } else {
+    throw err;
+  }
+});

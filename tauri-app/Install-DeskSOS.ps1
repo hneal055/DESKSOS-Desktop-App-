@@ -218,28 +218,34 @@ function Invoke-BackendStart {
         Write-OK ".env found."
     }
 
-    # Check if already running
-    try {
-        Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 2 -ErrorAction Stop | Out-Null
-        Write-Warn "Backend already running on port 5000."
+    # Check if port 5000 is already in use (TCP probe - works regardless of route)
+    $portInUse = (Test-NetConnection -ComputerName localhost -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue)
+    if ($portInUse) {
+        Write-Warn "Port 5000 is already in use - backend is already running."
+        Write-Info "Use option [5] to verify endpoints."
         Pause-Screen; return
-    } catch {}
+    }
 
     Write-Step "Starting backend API in background..."
     $backendDir = $BACKEND_DIR
     $job = Start-Job -ScriptBlock {
         param($dir)
         Set-Location $dir
-        node server.js
+        node server.js 2>&1
     } -ArgumentList $backendDir
 
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds 3
 
-    if ($job.State -eq "Running") {
+    # Re-check port to confirm server actually bound
+    $portBound = (Test-NetConnection -ComputerName localhost -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue)
+    if ($portBound) {
         Write-OK "Backend started (Job ID: $($job.Id)) on port 5000."
     } else {
-        Write-Fail "Backend job failed to start. Check backend/server.js."
-        Receive-Job $job | Write-Host
+        Write-Fail "Backend failed to bind to port 5000."
+        Write-Host ""
+        Write-Info "Job output:"
+        Receive-Job $job -ErrorAction SilentlyContinue | ForEach-Object { Write-Info $_ }
+        Remove-Job $job -Force -ErrorAction SilentlyContinue
         Pause-Screen; return
     }
 
@@ -258,11 +264,11 @@ function Show-BackendStatus {
     Show-Header
     Show-SectionHeader "Backend API - Status"
 
-    try {
-        Invoke-RestMethod "http://localhost:5000/health" -TimeoutSec 3 -ErrorAction Stop | Out-Null
-        Write-OK "Backend reachable on http://localhost:5000"
-    } catch {
-        Write-Warn "http://localhost:5000 not responding - backend may not be running."
+    $portUp = (Test-NetConnection -ComputerName localhost -Port 5000 -InformationLevel Quiet -WarningAction SilentlyContinue)
+    if ($portUp) {
+        Write-OK "Backend reachable on port 5000."
+    } else {
+        Write-Warn "Port 5000 not responding - backend may not be running. Use option [4] to start it."
     }
 
     # Show running jobs
