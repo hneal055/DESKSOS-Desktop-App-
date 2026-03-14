@@ -1,5 +1,5 @@
 const request = require("supertest");
-const app     = require("../server");
+const { app } = require("../src/server");
 
 let token;
 
@@ -42,3 +42,5 @@ describe("GET /assets/:code", () => {
     expect(res.statusCode).toBe(401);
   });
 });
+
+

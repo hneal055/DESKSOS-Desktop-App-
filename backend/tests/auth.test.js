@@ -1,5 +1,5 @@
 const request = require("supertest");
-const app     = require("../server");
+const { app } = require("../src/server");
 
 afterAll(() => { if (app.close) app.close(); });
 
@@ -61,3 +61,5 @@ describe("POST /auth/register", () => {
     expect(res.statusCode).toBe(400);
   });
 });
+
+
