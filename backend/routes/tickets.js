@@ -1,38 +1,67 @@
-const router = require('express').Router();
-const auth = require('../middleware/auth');
-const { tickets } = require('../data/store');
+const router = require("express").Router();
+const auth   = require("../middleware/auth");
+const { v4: uuidv4 } = require("uuid");
+const db     = require("../db");
+
+const PRIORITY = { P1: 0, P2: 1, P3: 2 };
+
+function toTicket(t) {
+  return {
+    id: t.id, title: t.title, description: t.description,
+    status: t.status, priority: t.priority,
+    assigneeId: t.assignee_id, assigneeName: t.assignee_name,
+    requester: t.requester,
+    createdAt: t.created_at, updatedAt: t.updated_at, resolvedAt: t.resolved_at,
+  };
+}
 
 // GET /tickets?status=open&assigneeId=1
-router.get('/', auth, (req, res) => {
+router.get("/", auth, (req, res) => {
   const { status, assigneeId } = req.query;
-  let result = [...tickets];
-  if (status)     result = result.filter(t => t.status === status);
-  if (assigneeId) result = result.filter(t => t.assigneeId === assigneeId);
-  result.sort((a, b) => {
-    const p = { P1: 0, P2: 1, P3: 2 };
-    return (p[a.priority] - p[b.priority]) || new Date(b.createdAt) - new Date(a.createdAt);
-  });
-  res.json(result);
+  let sql = "SELECT * FROM tickets WHERE 1=1";
+  const params = [];
+  if (status)     { sql += " AND status = ?";      params.push(status); }
+  if (assigneeId) { sql += " AND assignee_id = ?"; params.push(assigneeId); }
+  const rows = db.prepare(sql).all(...params);
+  rows.sort((a, b) =>
+    (PRIORITY[a.priority] - PRIORITY[b.priority]) ||
+    (new Date(b.created_at) - new Date(a.created_at))
+  );
+  res.json(rows.map(toTicket));
 });
 
 // GET /tickets/:id
-router.get('/:id', auth, (req, res) => {
-  const ticket = tickets.find(t => t.id === req.params.id);
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
-  res.json(ticket);
+router.get("/:id", auth, (req, res) => {
+  const t = db.prepare("SELECT * FROM tickets WHERE id = ?").get(req.params.id);
+  if (!t) return res.status(404).json({ error: "Ticket not found" });
+  res.json(toTicket(t));
 });
 
-// PATCH /tickets/:id  { status }
-router.patch('/:id', auth, (req, res) => {
-  const ticket = tickets.find(t => t.id === req.params.id);
-  if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
+// POST /tickets
+router.post("/", auth, (req, res) => {
+  const { title, description, priority, assigneeId, assigneeName, requester } = req.body;
+  if (!title) return res.status(400).json({ error: "title required" });
+  const now = new Date().toISOString();
+  const id  = "T-" + Date.now().toString().slice(-8);
+  db.prepare(`
+    INSERT INTO tickets (id,title,description,status,priority,assignee_id,assignee_name,requester,created_at,updated_at,resolved_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?)
+  `).run(id, title, description || "", "open", priority || "P3",
+         assigneeId || null, assigneeName || null, requester || null, now, now, null);
+  res.status(201).json(toTicket(db.prepare("SELECT * FROM tickets WHERE id = ?").get(id)));
+});
+
+// PATCH /tickets/:id
+router.patch("/:id", auth, (req, res) => {
+  const t = db.prepare("SELECT * FROM tickets WHERE id = ?").get(req.params.id);
+  if (!t) return res.status(404).json({ error: "Ticket not found" });
   const { status } = req.body;
   if (status) {
-    ticket.status = status;
-    ticket.updatedAt = new Date().toISOString();
-    if (status === 'resolved') ticket.resolvedAt = new Date().toISOString();
+    const now = new Date().toISOString();
+    db.prepare("UPDATE tickets SET status=?, updated_at=?, resolved_at=? WHERE id=?")
+      .run(status, now, status === "resolved" ? now : t.resolved_at, t.id);
   }
-  res.json(ticket);
+  res.json(toTicket(db.prepare("SELECT * FROM tickets WHERE id = ?").get(req.params.id)));
 });
 
 module.exports = router;
