@@ -25,8 +25,15 @@ const app    = express();
 const tlsCert = process.env.TLS_CERT_PATH ? fs.readFileSync(process.env.TLS_CERT_PATH) : null;
 const tlsKey  = process.env.TLS_KEY_PATH  ? fs.readFileSync(process.env.TLS_KEY_PATH)  : null;
 
-if (!tlsCert && process.env.NODE_ENV === "production") {
-  console.warn("[DeskSOS] WARNING: TLS_CERT_PATH / TLS_KEY_PATH not set — running over plain HTTP!");
+if (!tlsCert || !tlsKey) {
+  if (process.env.NODE_ENV === "production") {
+    console.error("[DeskSOS] FATAL: TLS_CERT_PATH and TLS_KEY_PATH must be set in production.");
+    console.error("  Generate a cert with: pwsh backend/scripts/gen-cert.ps1");
+    console.error("  For production deployments use a cert from a trusted CA.");
+    process.exit(1);
+  } else {
+    console.warn("[DeskSOS] WARNING: TLS not configured — running over plain HTTP (development only).");
+  }
 }
 
 const server = tlsCert && tlsKey
