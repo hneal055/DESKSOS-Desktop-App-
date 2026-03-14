@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import { io, Socket } from "socket.io-client";
 
 interface OnlineUser {
@@ -19,9 +20,10 @@ const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }];
 
 export default function RemoteSession() {
   // ─── Config ───────────────────────────────────────────────────────────────
-  const [serverUrl, setServerUrl] = useState("http://localhost:9000");
-  const [myName, setMyName] = useState("Desktop User");
-  const [myId] = useState(() => `desk-${Math.random().toString(36).slice(2, 9)}`);
+  const { user, token } = useAuth();
+  const myId = user?.id ?? "";
+  const [serverUrl, setServerUrl] = useState(import.meta.env.VITE_API_URL ?? "http://localhost:5000");
+  const [myName, setMyName] = useState(user?.name ?? user?.email ?? "Desktop User");
 
   // ─── Connection ───────────────────────────────────────────────────────────
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -57,7 +59,7 @@ export default function RemoteSession() {
   const connect = () => {
     if (socket) { socket.disconnect(); }
 
-    const s = io(serverUrl);
+    const s = io(serverUrl, { auth: { token } });
     socketRef.current = s;
 
     s.on("connect", () => {

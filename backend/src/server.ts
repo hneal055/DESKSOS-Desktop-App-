@@ -92,12 +92,50 @@ io.use((socket, next) => {
   }
 });
 
+// ── Presence tracking for Remote Sessions ────────────────────────────────────
+// Maps userId → { displayName, socketId }
+const presence = new Map<string, { name: string; socketId: string }>();
+
+function broadcastPresence(): void {
+  const users = Array.from(presence.entries()).map(([id, v]) => ({ id, name: v.name }));
+  io.emit("presence:update", { onlineUsers: users });
+}
+
 io.on("connection", (socket) => {
-  const user = socket.data.user as JwtPayload | undefined;
-  console.log("Socket connected:", user?.email);
+  const user = socket.data.user as JwtPayload;
+  console.log("Socket connected:", user.email);
+
+  // ── Chat rooms ─────────────────────────────────────────────────────────────
   socket.on("join",  (ch: string) => socket.join(ch));
   socket.on("leave", (ch: string) => socket.leave(ch));
-  socket.on("disconnect", () => console.log("Socket disconnected:", user?.email));
+
+  // ── Remote-session presence ───────────────────────────────────────────────
+  socket.on("user:join", (data: { name?: string }) => {
+    const displayName = data.name?.trim() || user.name || user.email;
+    presence.set(user.id, { name: displayName, socketId: socket.id });
+    broadcastPresence();
+  });
+
+  // Helper: forward an event to a specific user by userId
+  const routeTo = (targetId: string, event: string, payload: unknown): void => {
+    const entry = presence.get(targetId);
+    if (entry) io.to(entry.socketId).emit(event, payload);
+  };
+
+  // ── WebRTC signaling relay ────────────────────────────────────────────────
+  socket.on("remote:request",       (d: Record<string, unknown>) => routeTo(d.targetUserId as string, "remote:request",       d));
+  socket.on("remote:accept",        (d: Record<string, unknown>) => routeTo(d.techId        as string, "remote:accepted",     d));
+  socket.on("remote:decline",       (d: Record<string, unknown>) => routeTo(d.techId        as string, "remote:declined",     d));
+  socket.on("remote:offer",         (d: Record<string, unknown>) => routeTo(d.techId        as string, "remote:offer",        d));
+  socket.on("remote:answer",        (d: Record<string, unknown>) => routeTo(d.targetUserId  as string, "remote:answer",       d));
+  socket.on("remote:ice-candidate", (d: Record<string, unknown>) => routeTo(d.targetId      as string, "remote:ice-candidate",d));
+  socket.on("remote:end",           (d: Record<string, unknown>) => routeTo(d.targetId      as string, "remote:end",          d));
+
+  socket.on("disconnect", () => {
+    presence.delete(user.id);
+    broadcastPresence();
+    console.log("Socket disconnected:", user.email);
+  });
 });
 
 if (require.main === module) {
@@ -118,6 +156,6 @@ if (require.main === module) {
   });
 }
 
-export { app };
+export { app, server, io };
 
 
