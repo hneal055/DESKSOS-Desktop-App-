@@ -1,0 +1,2 @@
+# TLS certificates — never commit private keys
+certs/

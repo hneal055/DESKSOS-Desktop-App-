@@ -2,6 +2,8 @@ import "./config.js";
 import { JWT_SECRET, PORT, CORS_ORIGINS } from "./config.js";
 import express from "express";
 import http from "http";
+import https from "https";
+import fs from "fs";
 import { Server as SocketIOServer } from "socket.io";
 import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
@@ -19,7 +21,17 @@ import networkRoute   from "./routes/network.js";
 import ticketsRoute   from "./routes/tickets.js";
 
 const app    = express();
-const server = http.createServer(app);
+// ── TLS: set TLS_CERT_PATH + TLS_KEY_PATH env vars to enable HTTPS ──────────
+const tlsCert = process.env.TLS_CERT_PATH ? fs.readFileSync(process.env.TLS_CERT_PATH) : null;
+const tlsKey  = process.env.TLS_KEY_PATH  ? fs.readFileSync(process.env.TLS_KEY_PATH)  : null;
+
+if (!tlsCert && process.env.NODE_ENV === "production") {
+  console.warn("[DeskSOS] WARNING: TLS_CERT_PATH / TLS_KEY_PATH not set — running over plain HTTP!");
+}
+
+const server = tlsCert && tlsKey
+  ? https.createServer({ cert: tlsCert, key: tlsKey }, app)
+  : http.createServer(app);
 
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
