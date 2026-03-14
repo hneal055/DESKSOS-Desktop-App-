@@ -45,11 +45,14 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
+
+if (require.main === module) {
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`DeskSOS API running on http://0.0.0.0:${PORT}`);
   console.log('  admin@desksos.com / password123');
   console.log('  tech@desksos.com  / password123');
 });
+}
 
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -59,3 +62,6 @@ server.on('error', (err) => {
     throw err;
   }
 });
+
+
+module.exports = app;

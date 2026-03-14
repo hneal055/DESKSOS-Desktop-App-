@@ -3,7 +3,7 @@ const Database = require('better-sqlite3');
 const bcrypt  = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 
-const DB_PATH = path.join(__dirname, 'data', 'desksos.db');
+const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, 'data', 'desksos.db');
 const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
@@ -148,3 +148,4 @@ function seedIfEmpty() {
 seedIfEmpty();
 
 module.exports = db;
+
