@@ -6,8 +6,10 @@ import { Server as SocketIOServer } from "socket.io";
 import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
+import morgan from "morgan";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 import authRoute      from "./routes/auth.js";
 import dashboardRoute from "./routes/dashboard.js";
@@ -36,6 +38,9 @@ const corsOptions: CorsOptions = {
 const io = new SocketIOServer(server, {
   cors: { origin: CORS_ORIGINS, methods: ["GET", "POST"] },
 });
+
+// Request logging — "combined" writes Apache-style logs (IP, method, status, user-agent)
+app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 
 // Security headers
 app.use(helmet());
@@ -69,6 +74,12 @@ app.use("/assets",    assetsRoute);
 app.use("/network",   networkRoute);
 app.use("/tickets",   ticketsRoute);
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
+
+// 404 for any unknown route (before error handler)
+app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+
+// Global error handler — must have 4 params to be recognised by Express
+app.use(errorHandler);
 
 io.use((socket, next) => {
   const token = (socket.handshake.auth as { token?: string }).token;
@@ -108,4 +119,5 @@ if (require.main === module) {
 }
 
 export { app };
+
 
