@@ -4,13 +4,14 @@ import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db.js";
 import { User, SafeUser, JwtPayload } from "../types/index.js";
+import { JWT_SECRET } from "../config.js";
 
 const router = Router();
 
 const sign = (user: Pick<User, "id" | "email" | "role" | "name">): string =>
   jwt.sign(
     { id: user.id, email: user.email, role: user.role, name: user.name } satisfies JwtPayload,
-    process.env.JWT_SECRET as string,
+    JWT_SECRET,
     { expiresIn: "7d" }
   );
 
@@ -61,3 +62,4 @@ router.post("/register", (req: Request, res: Response): void => {
 });
 
 export default router;
+

@@ -1,4 +1,5 @@
-import "dotenv/config";
+import "./config.js";
+import { JWT_SECRET, PORT } from "./config.js";
 import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
@@ -33,7 +34,7 @@ io.use((socket, next) => {
   const token = (socket.handshake.auth as { token?: string }).token;
   if (!token) { next(new Error("Unauthorized")); return; }
   try {
-    socket.data.user = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+    socket.data.user = jwt.verify(token, JWT_SECRET) as JwtPayload;
     next();
   } catch {
     next(new Error("Invalid token"));
@@ -47,8 +48,6 @@ io.on("connection", (socket) => {
   socket.on("leave", (ch: string) => socket.leave(ch));
   socket.on("disconnect", () => console.log("Socket disconnected:", user?.email));
 });
-
-const PORT = process.env.PORT ?? "5000";
 
 if (require.main === module) {
   server.listen(Number(PORT), "0.0.0.0", () => {
@@ -68,4 +67,3 @@ if (require.main === module) {
 }
 
 export { app };
-

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { JWT_SECRET } from "../config.js";
 import { JwtPayload } from "../types/index.js";
 
 // Extend Express Request to carry the verified JWT payload
@@ -19,7 +20,7 @@ export default function auth(req: Request, res: Response, next: NextFunction): v
   }
   const token = header.slice(7);
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+    const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
     req.user = payload;
     next();
   } catch {
