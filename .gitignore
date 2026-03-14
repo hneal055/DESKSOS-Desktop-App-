@@ -12,6 +12,7 @@ tauri-app/src-tauri/target/
 # Logs
 *.log
 backend/logs/
+backend/data/backups/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

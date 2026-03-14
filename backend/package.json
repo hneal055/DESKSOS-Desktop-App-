@@ -7,7 +7,9 @@
     "dev": "ts-node src/server.ts",
     "start": "node dist/server.js",
     "test": "jest --runInBand",
-    "build": "tsc"
+    "build": "tsc",
+    "start:prod": "pm2 start ecosystem.config.js --env production",
+    "backup": "node scripts/backup-db.js"
   },
   "keywords": [],
   "author": "",
