@@ -9,6 +9,30 @@ vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(() => new Promise(() => {})),
 }));
 
+
+
+
+vi.mock("../contexts/AuthContext", () => ({
+  useAuth: vi.fn(() => ({ user: { id: "u1", name: "Test", email: "t@t.com", role: "admin" }, token: "tok", isAuthenticated: true, login: vi.fn(), logout: vi.fn() })),
+}));
+
+vi.mock("../api", () => ({
+  api: {
+    getChannels: vi.fn(() => Promise.resolve([])),
+    getMessages: vi.fn(() => Promise.resolve([])),
+    sendMessage:  vi.fn(() => Promise.resolve({})),
+  },
+  setApiToken: vi.fn(),
+}));
+
+vi.mock("socket.io-client", () => ({
+  io: vi.fn(() => ({
+    emit: vi.fn(),
+    on: vi.fn(),
+    disconnect: vi.fn(),
+  })),
+}));
+
 import DiskSpace        from "../components/modules/DiskSpace";
 import DiskHealth       from "../components/modules/DiskHealth";
 import MemoryConsumers  from "../components/modules/MemoryConsumers";
@@ -18,6 +42,7 @@ import RunningServices  from "../components/modules/RunningServices";
 import InstalledSoftware from "../components/modules/InstalledSoftware";
 import EventLog         from "../components/modules/EventLog";
 import WindowsUpdate    from "../components/modules/WindowsUpdate";
+import Chat           from "../components/modules/Chat";
 
 describe("Module smoke tests (render without crash)", () => {
   it("DiskSpace renders",        () => { const { container } = render(<DiskSpace />);        expect(container).not.toBeEmptyDOMElement(); });
@@ -29,4 +54,5 @@ describe("Module smoke tests (render without crash)", () => {
   it("InstalledSoftware renders",() => { const { container } = render(<InstalledSoftware />);expect(container).not.toBeEmptyDOMElement(); });
   it("EventLog renders",         () => { const { container } = render(<EventLog />);         expect(container).not.toBeEmptyDOMElement(); });
   it("WindowsUpdate renders",    () => { const { container } = render(<WindowsUpdate />);    expect(container).not.toBeEmptyDOMElement(); });
+  it("Chat renders",          () => { const { container } = render(<Chat />);           expect(container).not.toBeEmptyDOMElement(); });
 });

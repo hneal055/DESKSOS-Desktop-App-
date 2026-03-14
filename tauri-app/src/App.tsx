@@ -18,6 +18,7 @@ import MemoryConsumers from "./components/modules/MemoryConsumers";
 import DashboardSamples from "./components/modules/DashboardSamples";
 import NetworkFixes from "./components/modules/NetworkFixes";
 import RemoteSession from "./components/modules/RemoteSession";
+import Chat from "./components/modules/Chat";
 
 
 function FixItModule() {
@@ -156,6 +157,7 @@ function AppShell() {
     { id: "samples",    name: "🎛️ Samples",     component: <DashboardSamples /> },
     { id: "powershell", name: "💻 PowerShell",   component: <PowerShellModule /> },
     { id: "remote",     name: "📡 Remote",        component: <RemoteSession /> },
+    { id: "chat",      name: "💬 Chat",        component: <Chat /> },
   ];
 
   return (

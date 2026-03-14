@@ -58,6 +58,22 @@ export interface QueueCounts {
   avgResponseTime: number;
 }
 
+
+export interface Channel {
+  id: string;
+  name: string;
+  unreadCount: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  channelId: string;
+  userId: string;
+  userName: string;
+  text: string;
+  timestamp: string;
+}
+
 // Auth
 export const api = {
   login: (email: string, password: string) =>
@@ -91,6 +107,15 @@ export const api = {
 
   // Dashboard
   getQueue: () => request<QueueCounts>("/dashboard/queue"),
+
+  // Chat
+  getChannels: () => request<Channel[]>("/chat/channels"),
+  getMessages: (channelId: string) => request<ChatMessage[]>(`/chat/channels/${channelId}/messages`),
+  sendMessage: (channelId: string, text: string) =>
+    request<ChatMessage>(`/chat/channels/${channelId}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
 
   // Health
   health: () => request<{ status: string }>("/health"),
