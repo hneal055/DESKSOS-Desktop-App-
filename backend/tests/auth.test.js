@@ -41,7 +41,7 @@ describe("POST /auth/register", () => {
   it("registers a new user and returns a token", async () => {
     const res = await request(app)
       .post("/auth/register")
-      .send({ name: "New Tech", email: "newtech@desksos.com", password: "pass456" });
+      .send({ name: "New Tech", email: "newtech@desksos.com", password: "pass4567" });
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty("token");
     expect(res.body.user.role).toBe("technician");
@@ -50,9 +50,9 @@ describe("POST /auth/register", () => {
 
   it("rejects duplicate email", async () => {
     await request(app).post("/auth/register")
-      .send({ name: "Dup", email: "dup@desksos.com", password: "abc123" });
+      .send({ name: "Dup", email: "dup@desksos.com", password: "abc12345" });
     const res = await request(app).post("/auth/register")
-      .send({ name: "Dup2", email: "dup@desksos.com", password: "abc123" });
+      .send({ name: "Dup2", email: "dup@desksos.com", password: "abc12345" });
     expect(res.statusCode).toBe(409);
   });
 
@@ -60,6 +60,15 @@ describe("POST /auth/register", () => {
     const res = await request(app).post("/auth/register").send({ email: "x@y.com" });
     expect(res.statusCode).toBe(400);
   });
+
+  it("rejects password shorter than 8 characters", async () => {
+    const res = await request(app)
+      .post("/auth/register")
+      .send({ name: "Weak", email: "weak@desksos.com", password: "short" });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toMatch(/8 character/);
+  });
 });
+
 
 

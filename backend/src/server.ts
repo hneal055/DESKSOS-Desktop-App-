@@ -4,6 +4,8 @@ import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
 import cors from "cors";
+import helmet from "helmet";
+import { rateLimit } from "express-rate-limit";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
 
@@ -18,11 +20,32 @@ const app    = express();
 const server = http.createServer(app);
 const io     = new SocketIOServer(server, { cors: { origin: "*" } });
 
+// Security headers
+app.use(helmet());
+
+// Rate limiters
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 200,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please try again later." },
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many auth attempts, please try again later." },
+});
+
+app.use(globalLimiter);
 app.use(cors());
 app.use(express.json());
 app.set("io", io);
 
-app.use("/auth",      authRoute);
+app.use("/auth",      authLimiter, authRoute);
 app.use("/dashboard", dashboardRoute);
 app.use("/chat",      chatRoute);
 app.use("/assets",    assetsRoute);

@@ -40,6 +40,10 @@ router.post("/register", (req: Request, res: Response): void => {
     res.status(400).json({ error: "All fields required" });
     return;
   }
+  if (password.length < 8) {
+    res.status(400).json({ error: "Password must be at least 8 characters" });
+    return;
+  }
   const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(
     email.toLowerCase().trim()
   );
@@ -62,4 +66,5 @@ router.post("/register", (req: Request, res: Response): void => {
 });
 
 export default router;
+
 
