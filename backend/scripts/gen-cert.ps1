@@ -1,26 +1,83 @@
 <#
 .SYNOPSIS
-    Generates a self-signed TLS certificate for DeskSOS backend (localhost).
-    Uses .NET — no OpenSSL required.
+    Generates a locally-trusted TLS certificate for the DeskSOS backend
+    (localhost / 127.0.0.1).
+
+    Preferred path — mkcert (recommended):
+      mkcert installs a local CA into the Windows / Firefox / Java trust stores
+      so the Tauri WebView and browsers accept the cert without any warning.
+
+        winget install FiloSottile.mkcert     # install mkcert
+        cd backend
+        pwsh scripts/gen-cert.ps1             # generates trusted cert
+
+    Fallback path (self-signed):
+      If mkcert is not found the script falls back to a .NET self-signed cert.
+      The Tauri WebView will NOT trust it automatically — use mkcert instead.
 
 .OUTPUTS
     backend/certs/server.crt  (PEM certificate)
     backend/certs/server.key  (PEM private key)
-
-.EXAMPLE
-    cd backend
-    pwsh scripts/gen-cert.ps1
 #>
 param(
     [string]$OutDir    = "$PSScriptRoot\..\certs",
     [int]   $ValidDays = 825   # Apple / Chrome max accepted validity
 )
 
-$OutDir = Resolve-Path -LiteralPath (New-Item -ItemType Directory -Force $OutDir)
+$OutDir = (New-Item -ItemType Directory -Force $OutDir).FullName
+
+# ── Try mkcert first (locally-trusted cert) ──────────────────────────────────
+$mkcert = Get-Command mkcert -ErrorAction SilentlyContinue
+
+if ($mkcert) {
+    Write-Host "mkcert found — generating locally-trusted certificate..."
+    Write-Host ""
+
+    # Install the local CA into the system trust store (idempotent)
+    & mkcert -install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "mkcert -install failed. Try running as Administrator."
+        exit 1
+    }
+
+    # Generate cert + key for localhost / 127.0.0.1
+    Push-Location $OutDir
+    & mkcert -cert-file server.crt -key-file server.key localhost 127.0.0.1
+    if ($LASTEXITCODE -ne 0) {
+        Pop-Location
+        Write-Error "mkcert failed to generate certificate."
+        exit 1
+    }
+    Pop-Location
+
+    Write-Host ""
+    Write-Host "Done. Locally-trusted certificate created:"
+    Write-Host "  Certificate : $OutDir\server.crt"
+    Write-Host "  Private key : $OutDir\server.key"
+    Write-Host ""
+    Write-Host "Add to backend/.env:"
+    Write-Host "  TLS_CERT_PATH=./certs/server.crt"
+    Write-Host "  TLS_KEY_PATH=./certs/server.key"
+    exit 0
+}
+
+# ── Fallback: .NET self-signed cert ──────────────────────────────────────────
+Write-Warning "mkcert not found — falling back to a self-signed certificate."
+Write-Warning "The Tauri WebView will NOT trust this cert automatically."
+Write-Warning ""
+Write-Warning "To generate a trusted cert instead, install mkcert:"
+Write-Warning "  winget install FiloSottile.mkcert   (Windows Package Manager)"
+Write-Warning "  choco install mkcert                (Chocolatey)"
+Write-Warning "  scoop install mkcert                (Scoop)"
+Write-Warning ""
+Write-Warning "Then re-run this script."
+Write-Warning ""
+
+$certPath = Join-Path $OutDir "server.crt"
+$keyPath  = Join-Path $OutDir "server.key"
 
 Write-Host "Generating self-signed cert for localhost (valid $ValidDays days)..."
 
-# Create the certificate in the Windows cert store (CurrentUser\My) then export
 $cert = New-SelfSignedCertificate `
     -DnsName "localhost","127.0.0.1" `
     -CertStoreLocation "Cert:\CurrentUser\My" `
@@ -29,10 +86,9 @@ $cert = New-SelfSignedCertificate `
     -KeyLength 2048 `
     -HashAlgorithm SHA256 `
     -KeyUsage DigitalSignature, KeyEncipherment `
-    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1")  # TLS server auth
+    -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1")
 
-# ── Export certificate (public) ───────────────────────────────────────────────
-$certPath = Join-Path $OutDir "server.crt"
+# Export certificate (public)
 $certBytes = $cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
 $b64 = [Convert]::ToBase64String($certBytes)
 $pem = "-----BEGIN CERTIFICATE-----`n"
@@ -41,11 +97,9 @@ for ($i = 0; $i -lt $b64.Length; $i += 64) {
 }
 $pem += "-----END CERTIFICATE-----"
 Set-Content $certPath $pem -Encoding ASCII
-Write-Host "  Certificate: $certPath"
 
-# ── Export private key ────────────────────────────────────────────────────────
-$keyPath = Join-Path $OutDir "server.key"
-$rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
+# Export private key
+$rsa     = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($cert)
 $keyBytes = $rsa.ExportPkcs8PrivateKey()
 $keyB64   = [Convert]::ToBase64String($keyBytes)
 $keyPem   = "-----BEGIN PRIVATE KEY-----`n"
@@ -54,15 +108,13 @@ for ($i = 0; $i -lt $keyB64.Length; $i += 64) {
 }
 $keyPem += "-----END PRIVATE KEY-----"
 Set-Content $keyPath $keyPem -Encoding ASCII
-Write-Host "  Private key: $keyPath"
 
-# ── Clean up from cert store ──────────────────────────────────────────────────
+# Remove from cert store
 Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force
 
+Write-Host "  Certificate : $certPath"
+Write-Host "  Private key : $keyPath"
 Write-Host ""
-Write-Host "Done. Add to backend/.env:"
+Write-Host "Add to backend/.env:"
 Write-Host "  TLS_CERT_PATH=./certs/server.crt"
 Write-Host "  TLS_KEY_PATH=./certs/server.key"
-Write-Host ""
-Write-Host "NOTE: This is a self-signed cert. Browsers will show a warning."
-Write-Host "      For production, use a cert from a trusted CA or Let's Encrypt."

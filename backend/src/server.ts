@@ -29,7 +29,7 @@ if (!tlsCert || !tlsKey) {
   if (process.env.NODE_ENV === "production") {
     console.error("[DeskSOS] FATAL: TLS_CERT_PATH and TLS_KEY_PATH must be set in production.");
     console.error("  Generate a cert with: pwsh backend/scripts/gen-cert.ps1");
-    console.error("  For production deployments use a cert from a trusted CA.");
+    console.error("  Use mkcert for a locally-trusted cert: winget install FiloSottile.mkcert");
     process.exit(1);
   } else {
     console.warn("[DeskSOS] WARNING: TLS not configured — running over plain HTTP (development only).");
