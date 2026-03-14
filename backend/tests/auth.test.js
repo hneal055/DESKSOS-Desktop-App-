@@ -38,9 +38,16 @@ describe("POST /auth/login", () => {
 });
 
 describe("POST /auth/register", () => {
+  let adminToken;
+  beforeAll(async () => {
+    const res = await request(app).post("/auth/login").send({ email: "admin@desksos.com", password: "password123" });
+    adminToken = res.body.token;
+  });
+
   it("registers a new user and returns a token", async () => {
     const res = await request(app)
       .post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ name: "New Tech", email: "newtech@desksos.com", password: "pass4567" });
     expect(res.statusCode).toBe(201);
     expect(res.body).toHaveProperty("token");
@@ -50,26 +57,46 @@ describe("POST /auth/register", () => {
 
   it("rejects duplicate email", async () => {
     await request(app).post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ name: "Dup", email: "dup@desksos.com", password: "abc12345" });
     const res = await request(app).post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ name: "Dup2", email: "dup@desksos.com", password: "abc12345" });
     expect(res.statusCode).toBe(409);
   });
 
   it("rejects missing fields", async () => {
-    const res = await request(app).post("/auth/register").send({ email: "x@y.com" });
+    const res = await request(app).post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ email: "x@y.com" });
     expect(res.statusCode).toBe(400);
+  });
+
+  it("rejects registration without admin token (401)", async () => {
+    const res = await request(app).post("/auth/register").send({ name: "Rogue", email: "rogue@desksos.com", password: "password123" });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("rejects registration by technician (403)", async () => {
+    const techRes = await request(app).post("/auth/login").send({ email: "tech@desksos.com", password: "password123" });
+    const res = await request(app).post("/auth/register")
+      .set("Authorization", `Bearer ${techRes.body.token}`)
+      .send({ name: "Rouge2", email: "rouge2@desksos.com", password: "password123" });
+    expect(res.statusCode).toBe(403);
   });
 
   it("rejects password shorter than 8 characters", async () => {
     const res = await request(app)
       .post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
       .send({ name: "Weak", email: "weak@desksos.com", password: "short" });
     expect(res.statusCode).toBe(400);
     expect(res.body.error).toBe("Validation failed");
     expect(res.body.errors[0].message).toMatch(/8 character/);
   });
 });
+
+
 
 
 

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "./contexts/AuthContext";
+import Login from "./components/Login";
 import { invoke } from "@tauri-apps/api/core";
 import "./styles.css";
 import Dashboard from "./components/modules/Dashboard";
@@ -131,7 +133,8 @@ function PowerShellModule() {
   );
 }
 
-export default function App() {
+function AppShell() {
+  const { user, logout } = useAuth();
   const [activeModule, setActiveModule] = useState("dashboard");
 
   const modules = [
@@ -158,12 +161,26 @@ export default function App() {
   return (
     <div className="flex h-screen bg-gray-900">
       <div className="w-48 bg-gray-800 p-4 border-r border-gray-700 flex flex-col overflow-hidden">
-        <h1 className="text-xl font-bold text-blue-400 mb-4 shrink-0">DeskSOS</h1>
+        <div className="shrink-0 mb-4">
+          <h1 className="text-xl font-bold text-blue-400">DeskSOS</h1>
+          {user && (
+            <div className="mt-1 text-xs text-gray-500 truncate" title={user.email}>
+              {user.name} · {user.role}
+            </div>
+          )}
+        </div>
         <div className="space-y-1 overflow-y-auto flex-1">
           {modules.map((mod) => (
             <button type="button" key={mod.id} onClick={() => setActiveModule(mod.id)} className={`w-full text-left px-3 py-2 rounded transition ${activeModule === mod.id ? "bg-blue-600 text-white" : "text-gray-400 hover:bg-gray-700"}`}>{mod.name}</button>
           ))}
         </div>
+        <button
+            type="button"
+            onClick={logout}
+            className="mt-3 w-full text-left px-3 py-2 rounded text-red-400 hover:bg-gray-700 text-sm shrink-0"
+          >
+            ⇠ Sign out
+          </button>
       </div>
 
       <div className="flex-1 p-6 overflow-auto">
@@ -174,9 +191,9 @@ export default function App() {
     </div>
   );
 }
-
-
-
-
+export default function App() {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <AppShell /> : <Login />;
+}
 
 

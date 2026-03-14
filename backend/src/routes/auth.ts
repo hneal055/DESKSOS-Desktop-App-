@@ -5,7 +5,9 @@ import { v4 as uuidv4 } from "uuid";
 import db from "../db.js";
 import { JWT_SECRET } from "../config.js";
 import { User, SafeUser, JwtPayload } from "../types/index.js";
+import auth from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { requireRole } from "../middleware/requireRole.js";
 import { LoginSchema, RegisterSchema, LoginInput, RegisterInput } from "../validation.js";
 
 const router = Router();
@@ -30,7 +32,7 @@ router.post("/login", validate(LoginSchema), (req: Request, res: Response): void
   res.json({ token: sign(user), user: safeUser as SafeUser });
 });
 
-router.post("/register", validate(RegisterSchema), (req: Request, res: Response): void => {
+router.post("/register", auth, requireRole("admin"), validate(RegisterSchema), (req: Request, res: Response): void => {
   const { name, email, password } = req.body as RegisterInput;
   const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(
     email.toLowerCase().trim()
@@ -54,3 +56,5 @@ router.post("/register", validate(RegisterSchema), (req: Request, res: Response)
 });
 
 export default router;
+
+

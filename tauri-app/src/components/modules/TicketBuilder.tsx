@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { api, ApiError } from "../../api";
 
 interface DiagData {
   name: string;
@@ -37,6 +38,9 @@ export default function TicketBuilder() {
   const [issueDesc, setIssueDesc] = useState("");
   const [stepsTried, setStepsTried] = useState("");
   const [priority, setPriority] = useState<Priority>("Medium");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState<{ id: string } | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const gatherDiagnostics = async () => {
     setLoading(true);
@@ -177,6 +181,27 @@ export default function TicketBuilder() {
       setTimeout(() => setCopied(false), 3000);
     }
   };
+  const submitTicket = async () => {
+    if (!diagData) return;
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitted(null);
+    try {
+      const p = priority === "Critical" ? "P1" : priority === "High" ? "P2" : "P3";
+      const ticket = await api.createTicket({
+        title: `[${diagData.name}] ${issueDesc.slice(0, 100) || "Support Request"}`,
+        description: buildTicketText(),
+        priority: p,
+        requester: diagData.user,
+      });
+      setSubmitted({ id: ticket.id });
+    } catch (err) {
+      setSubmitError(err instanceof ApiError ? err.message : "Failed to submit ticket");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
 
   const ticketText = diagData ? buildTicketText() : null;
 
@@ -302,7 +327,7 @@ export default function TicketBuilder() {
         <div className="bg-gray-800 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-cyan-400">
-              3. Copy to Clipboard
+              3. Submit or Copy
             </h3>
             <button
               type="button"
@@ -317,10 +342,35 @@ export default function TicketBuilder() {
             </button>
           </div>
 
+            <button
+              type="button"
+              onClick={submitTicket}
+              disabled={submitting || !issueDesc.trim()}
+              className={`px-6 py-2 rounded-lg font-semibold transition ${
+                submitted
+                  ? "bg-green-700 text-white cursor-default"
+                  : submitting
+                    ? "bg-indigo-800 text-white opacity-70 cursor-wait"
+                    : "bg-indigo-600 hover:bg-indigo-500 text-white"
+              }`}
+            >
+              {submitted ? "✅ Submitted!" : submitting ? "⏳ Submitting…" : "📤 Submit to DeskSOS"}
+            </button>
+
           {/* Preview */}
           <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs font-mono overflow-auto max-h-96 whitespace-pre leading-relaxed">
             {ticketText}
           </pre>
+          {submitted && (
+            <div className="mt-3 bg-green-900/30 border border-green-600 rounded-lg p-3 text-green-400 text-sm">
+              ✓ Ticket <span className="font-mono font-bold">{submitted.id}</span> created successfully.
+            </div>
+          )}
+          {submitError && (
+            <div className="mt-3 bg-red-900/30 border border-red-700 rounded-lg p-3 text-red-400 text-sm">
+              ✗ {submitError}
+            </div>
+          )}
         </div>
       )}
     </div>
