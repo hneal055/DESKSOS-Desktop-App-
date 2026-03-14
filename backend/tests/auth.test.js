@@ -101,3 +101,62 @@ describe("POST /auth/register", () => {
 
 
 
+
+describe("PATCH /auth/change-password", () => {
+  let testToken;
+
+  beforeAll(async () => {
+    const adminRes = await request(app).post("/auth/login")
+      .send({ email: "admin@desksos.com", password: "password123" });
+    const adminToken = adminRes.body.token;
+    const regRes = await request(app).post("/auth/register")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ name: "PwTest", email: "pwtest@desksos.com", password: "InitPwd1!" });
+    testToken = regRes.body.token;
+  });
+
+  it("changes password and new credentials work", async () => {
+    const res = await request(app)
+      .patch("/auth/change-password")
+      .set("Authorization", `Bearer ${testToken}`)
+      .send({ currentPassword: "InitPwd1!", newPassword: "ChangedPwd2@" });
+    expect(res.statusCode).toBe(200);
+    expect(res.body.message).toBe("Password changed successfully");
+
+    const loginRes = await request(app).post("/auth/login")
+      .send({ email: "pwtest@desksos.com", password: "ChangedPwd2@" });
+    expect(loginRes.statusCode).toBe(200);
+    expect(loginRes.body).toHaveProperty("token");
+  });
+
+  it("rejects wrong current password with 401", async () => {
+    const freshLogin = await request(app).post("/auth/login")
+      .send({ email: "pwtest@desksos.com", password: "ChangedPwd2@" });
+    const token = freshLogin.body.token;
+    const res = await request(app)
+      .patch("/auth/change-password")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "WrongPass!", newPassword: "Another3#" });
+    expect(res.statusCode).toBe(401);
+    expect(res.body.error).toBe("Current password is incorrect");
+  });
+
+  it("rejects new password identical to current with 400", async () => {
+    const freshLogin = await request(app).post("/auth/login")
+      .send({ email: "pwtest@desksos.com", password: "ChangedPwd2@" });
+    const token = freshLogin.body.token;
+    const res = await request(app)
+      .patch("/auth/change-password")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ currentPassword: "ChangedPwd2@", newPassword: "ChangedPwd2@" });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("Validation failed");
+  });
+
+  it("rejects unauthenticated request with 401", async () => {
+    const res = await request(app)
+      .patch("/auth/change-password")
+      .send({ currentPassword: "InitPwd1!", newPassword: "ChangedPwd2@" });
+    expect(res.statusCode).toBe(401);
+  });
+});

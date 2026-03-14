@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import path from "path";
 import Database, { Database as DB } from "better-sqlite3";
 import bcrypt from "bcryptjs";
@@ -77,11 +78,29 @@ function seedIfEmpty(): void {
 
   const now = Date.now();
 
+  const isProd = process.env.NODE_ENV === "production";
+
+  // In production: generate random passwords and print them ONCE; in dev use fixed passwords for convenience
+  const adminPwd = isProd ? crypto.randomBytes(16).toString("hex") : "password123";
+  const techPwd  = isProd ? crypto.randomBytes(16).toString("hex") : "password123";
+
   const insUser = db.prepare(
     "INSERT INTO users (id,name,email,password,role) VALUES (?,?,?,?,?)"
   );
-  insUser.run("1", "Admin User", "admin@desksos.com", bcrypt.hashSync("password123", 10), "admin");
-  insUser.run("2", "Tech User",  "tech@desksos.com",  bcrypt.hashSync("password123", 10), "technician");
+  insUser.run("1", "Admin User", "admin@desksos.com", bcrypt.hashSync(adminPwd, 10), "admin");
+  insUser.run("2", "Tech User",  "tech@desksos.com",  bcrypt.hashSync(techPwd,  10), "technician");
+
+  if (isProd) {
+    console.log("=".repeat(60));
+    console.log("  DESKSOS FIRST-RUN CREDENTIALS — SAVE THESE NOW");
+    console.log("  They will NOT be shown again.");
+    console.log("=".repeat(60));
+    console.log(`  Admin:      admin@desksos.com  /  ${adminPwd}`);
+    console.log(`  Technician: tech@desksos.com   /  ${techPwd}`);
+    console.log("=".repeat(60));
+    console.log("  Change both passwords immediately after first login.");
+    console.log("=".repeat(60));
+  }
 
   const insCh = db.prepare("INSERT INTO channels (id,name,unread_count) VALUES (?,?,?)");
   insCh.run("ch1", "general",       2);

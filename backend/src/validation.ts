@@ -39,3 +39,12 @@ export type RegisterInput     = z.infer<typeof RegisterSchema>;
 export type CreateTicketInput = z.infer<typeof CreateTicketSchema>;
 export type PatchTicketInput  = z.infer<typeof PatchTicketSchema>;
 export type PostMessageInput  = z.infer<typeof PostMessageSchema>;
+export const ChangePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password required"),
+  newPassword:     z.string().min(8, "New password must be at least 8 characters"),
+}).refine((d) => d.currentPassword !== d.newPassword, {
+  message: "New password must differ from current password",
+  path: ["newPassword"],
+});
+
+export type ChangePasswordInput = z.infer<typeof ChangePasswordSchema>;

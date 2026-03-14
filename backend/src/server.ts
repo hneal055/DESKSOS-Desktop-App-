@@ -46,9 +46,12 @@ app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
 app.use(helmet());
 
 // Rate limiters
+const skipInTest = () => process.env.NODE_ENV === "test";
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
+  skip: skipInTest,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many requests, please try again later." },
@@ -57,6 +60,7 @@ const globalLimiter = rateLimit({
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  skip: skipInTest,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many auth attempts, please try again later." },
@@ -142,8 +146,6 @@ if (require.main === module) {
   server.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`DeskSOS API running on http://0.0.0.0:${PORT}`);
     console.log(`  CORS origins: ${CORS_ORIGINS.join(", ")}`);
-    console.log("  admin@desksos.com / password123");
-    console.log("  tech@desksos.com  / password123");
   });
 
   server.on("error", (err: NodeJS.ErrnoException) => {

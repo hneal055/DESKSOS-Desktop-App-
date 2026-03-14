@@ -8,7 +8,7 @@ import { User, SafeUser, JwtPayload } from "../types/index.js";
 import auth from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { requireRole } from "../middleware/requireRole.js";
-import { LoginSchema, RegisterSchema, LoginInput, RegisterInput } from "../validation.js";
+import { LoginSchema, RegisterSchema, LoginInput, RegisterInput, ChangePasswordSchema, ChangePasswordInput } from "../validation.js";
 
 const router = Router();
 
@@ -53,6 +53,19 @@ router.post("/register", auth, requireRole("admin"), validate(RegisterSchema), (
   );
   const { password: _, ...safeUser } = newUser;
   res.status(201).json({ token: sign(newUser), user: safeUser as SafeUser });
+});
+
+router.patch("/change-password", auth, validate(ChangePasswordSchema), (req: Request, res: Response): void => {
+  const { currentPassword, newPassword } = req.body as ChangePasswordInput;
+  const user = db.prepare("SELECT * FROM users WHERE id = ?").get(req.user!.id) as User | undefined;
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  if (!bcrypt.compareSync(currentPassword, user.password)) {
+    res.status(401).json({ error: "Current password is incorrect" });
+    return;
+  }
+  const hashed = bcrypt.hashSync(newPassword, 10);
+  db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hashed, user.id);
+  res.json({ message: "Password changed successfully" });
 });
 
 export default router;
