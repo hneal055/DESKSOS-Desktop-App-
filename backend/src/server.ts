@@ -1,9 +1,9 @@
 import "./config.js";
-import { JWT_SECRET, PORT } from "./config.js";
+import { JWT_SECRET, PORT, CORS_ORIGINS } from "./config.js";
 import express from "express";
 import http from "http";
 import { Server as SocketIOServer } from "socket.io";
-import cors from "cors";
+import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import jwt from "jsonwebtoken";
@@ -18,14 +18,31 @@ import ticketsRoute   from "./routes/tickets.js";
 
 const app    = express();
 const server = http.createServer(app);
-const io     = new SocketIOServer(server, { cors: { origin: "*" } });
+
+const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no Origin header (server-to-server, curl in dev)
+    if (!origin || CORS_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
+  methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+};
+
+const io = new SocketIOServer(server, {
+  cors: { origin: CORS_ORIGINS, methods: ["GET", "POST"] },
+});
 
 // Security headers
 app.use(helmet());
 
 // Rate limiters
 const globalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 min
+  windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
@@ -41,7 +58,7 @@ const authLimiter = rateLimit({
 });
 
 app.use(globalLimiter);
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 app.set("io", io);
 
@@ -75,6 +92,7 @@ io.on("connection", (socket) => {
 if (require.main === module) {
   server.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`DeskSOS API running on http://0.0.0.0:${PORT}`);
+    console.log(`  CORS origins: ${CORS_ORIGINS.join(", ")}`);
     console.log("  admin@desksos.com / password123");
     console.log("  tech@desksos.com  / password123");
   });
@@ -90,3 +108,4 @@ if (require.main === module) {
 }
 
 export { app };
+

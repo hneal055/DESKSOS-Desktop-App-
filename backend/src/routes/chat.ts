@@ -1,8 +1,10 @@
 import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import auth from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js";
 import db from "../db.js";
 import { Message } from "../types/index.js";
+import { PostMessageSchema, PostMessageInput } from "../validation.js";
 
 const router = Router();
 
@@ -21,9 +23,8 @@ router.get("/channels/:id/messages", auth, (req: Request, res: Response): void =
   res.json(msgs);
 });
 
-router.post("/channels/:id/messages", auth, (req: Request, res: Response): void => {
-  const { text } = req.body as { text?: string };
-  if (!text) { res.status(400).json({ error: "text required" }); return; }
+router.post("/channels/:id/messages", auth, validate(PostMessageSchema), (req: Request, res: Response): void => {
+  const { text } = req.body as PostMessageInput;
   const msg: Message = {
     id: uuidv4(),
     channelId: req.params.id as string,
@@ -41,4 +42,3 @@ router.post("/channels/:id/messages", auth, (req: Request, res: Response): void 
 });
 
 export default router;
-

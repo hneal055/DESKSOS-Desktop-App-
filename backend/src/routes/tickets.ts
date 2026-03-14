@@ -1,8 +1,9 @@
 import { Router, Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
 import auth from "../middleware/auth.js";
+import { validate } from "../middleware/validate.js";
 import db from "../db.js";
 import { Ticket, TicketResponse } from "../types/index.js";
+import { CreateTicketSchema, PatchTicketSchema, CreateTicketInput, PatchTicketInput } from "../validation.js";
 
 const router = Router();
 
@@ -18,13 +19,13 @@ function toTicket(t: Ticket): TicketResponse {
   };
 }
 
-// GET /tickets?status=open&assigneeId=1
+// GET /tickets?status=open&assigneeId=uuid
 router.get("/", auth, (req: Request, res: Response): void => {
   const { status, assigneeId } = req.query as { status?: string; assigneeId?: string };
   let sql = "SELECT * FROM tickets WHERE 1=1";
   const params: string[] = [];
-  if (status)     { sql += " AND status = ?";       params.push(status); }
-  if (assigneeId) { sql += " AND assignee_id = ?";  params.push(assigneeId); }
+  if (status)     { sql += " AND status = ?";      params.push(status); }
+  if (assigneeId) { sql += " AND assignee_id = ?"; params.push(assigneeId); }
   const rows = db.prepare(sql).all(...params) as Ticket[];
   rows.sort((a, b) =>
     (PRIORITY[a.priority] - PRIORITY[b.priority]) ||
@@ -41,13 +42,8 @@ router.get("/:id", auth, (req: Request, res: Response): void => {
 });
 
 // POST /tickets
-router.post("/", auth, (req: Request, res: Response): void => {
-  const { title, description, priority, assigneeId, assigneeName, requester } =
-    req.body as {
-      title?: string; description?: string; priority?: string;
-      assigneeId?: string; assigneeName?: string; requester?: string;
-    };
-  if (!title) { res.status(400).json({ error: "title required" }); return; }
+router.post("/", auth, validate(CreateTicketSchema), (req: Request, res: Response): void => {
+  const { title, description, priority, assigneeId, assigneeName, requester } = req.body as CreateTicketInput;
   const now = new Date().toISOString();
   const id  = "T-" + Date.now().toString().slice(-8);
   db.prepare(`
@@ -61,15 +57,13 @@ router.post("/", auth, (req: Request, res: Response): void => {
 });
 
 // PATCH /tickets/:id
-router.patch("/:id", auth, (req: Request, res: Response): void => {
+router.patch("/:id", auth, validate(PatchTicketSchema), (req: Request, res: Response): void => {
   const t = db.prepare("SELECT * FROM tickets WHERE id = ?").get(req.params.id) as Ticket | undefined;
   if (!t) { res.status(404).json({ error: "Ticket not found" }); return; }
-  const { status } = req.body as { status?: string };
-  if (status) {
-    const now = new Date().toISOString();
-    db.prepare("UPDATE tickets SET status=?, updated_at=?, resolved_at=? WHERE id=?")
-      .run(status, now, status === "resolved" ? now : t.resolved_at, t.id);
-  }
+  const { status } = req.body as PatchTicketInput;
+  const now = new Date().toISOString();
+  db.prepare("UPDATE tickets SET status=?, updated_at=?, resolved_at=? WHERE id=?")
+    .run(status, now, status === "resolved" ? now : t.resolved_at, t.id);
   const updated = db.prepare("SELECT * FROM tickets WHERE id = ?").get(req.params.id) as Ticket;
   res.json(toTicket(updated));
 });

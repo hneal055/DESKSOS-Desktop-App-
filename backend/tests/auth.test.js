@@ -66,9 +66,11 @@ describe("POST /auth/register", () => {
       .post("/auth/register")
       .send({ name: "Weak", email: "weak@desksos.com", password: "short" });
     expect(res.statusCode).toBe(400);
-    expect(res.body.error).toMatch(/8 character/);
+    expect(res.body.error).toBe("Validation failed");
+    expect(res.body.errors[0].message).toMatch(/8 character/);
   });
 });
+
 
 
 

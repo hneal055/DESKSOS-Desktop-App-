@@ -3,8 +3,10 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuidv4 } from "uuid";
 import db from "../db.js";
-import { User, SafeUser, JwtPayload } from "../types/index.js";
 import { JWT_SECRET } from "../config.js";
+import { User, SafeUser, JwtPayload } from "../types/index.js";
+import { validate } from "../middleware/validate.js";
+import { LoginSchema, RegisterSchema, LoginInput, RegisterInput } from "../validation.js";
 
 const router = Router();
 
@@ -15,12 +17,8 @@ const sign = (user: Pick<User, "id" | "email" | "role" | "name">): string =>
     { expiresIn: "7d" }
   );
 
-router.post("/login", (req: Request, res: Response): void => {
-  const { email, password } = req.body as { email?: string; password?: string };
-  if (!email || !password) {
-    res.status(400).json({ error: "Email and password required" });
-    return;
-  }
+router.post("/login", validate(LoginSchema), (req: Request, res: Response): void => {
+  const { email, password } = req.body as LoginInput;
   const user = db.prepare("SELECT * FROM users WHERE email = ?").get(
     email.toLowerCase().trim()
   ) as User | undefined;
@@ -32,18 +30,8 @@ router.post("/login", (req: Request, res: Response): void => {
   res.json({ token: sign(user), user: safeUser as SafeUser });
 });
 
-router.post("/register", (req: Request, res: Response): void => {
-  const { name, email, password } = req.body as {
-    name?: string; email?: string; password?: string;
-  };
-  if (!name || !email || !password) {
-    res.status(400).json({ error: "All fields required" });
-    return;
-  }
-  if (password.length < 8) {
-    res.status(400).json({ error: "Password must be at least 8 characters" });
-    return;
-  }
+router.post("/register", validate(RegisterSchema), (req: Request, res: Response): void => {
+  const { name, email, password } = req.body as RegisterInput;
   const exists = db.prepare("SELECT id FROM users WHERE email = ?").get(
     email.toLowerCase().trim()
   );
@@ -66,5 +54,3 @@ router.post("/register", (req: Request, res: Response): void => {
 });
 
 export default router;
-
-

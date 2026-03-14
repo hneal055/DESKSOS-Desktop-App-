@@ -14,3 +14,8 @@ function requireEnv(name: string, minLength = 0): string {
 
 export const JWT_SECRET = requireEnv("JWT_SECRET", 32);
 export const PORT       = process.env.PORT ?? "5000";
+
+// Comma-separated allowed origins. Defaults to localhost dev ports.
+// In production set: CORS_ORIGINS=https://your-app.com
+const rawOrigins = process.env.CORS_ORIGINS ?? "http://localhost:1420,http://localhost:5000,http://localhost:3000";
+export const CORS_ORIGINS: string[] = rawOrigins.split(",").map((o) => o.trim()).filter(Boolean);
