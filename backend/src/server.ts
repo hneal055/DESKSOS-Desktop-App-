@@ -4,11 +4,13 @@ import express from "express";
 import http from "http";
 import https from "https";
 import fs from "fs";
+import path from "path";
 import { Server as SocketIOServer } from "socket.io";
 import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import morgan from "morgan";
+import rfs from "rotating-file-stream";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -58,8 +60,21 @@ const io = new SocketIOServer(server, {
   cors: { origin: CORS_ORIGINS, methods: ["GET", "POST"] },
 });
 
-// Request logging — "combined" writes Apache-style logs (IP, method, status, user-agent)
-app.use(morgan(process.env.NODE_ENV === "production" ? "combined" : "dev"));
+// ── Request logging ─────────────────────────────────────────────────────────
+if (process.env.NODE_ENV === "production") {
+  // Rotate access log daily, keep 14 days, max 10 MB per file
+  const logDir = path.join(__dirname, "..", "logs");
+  fs.mkdirSync(logDir, { recursive: true });
+  const accessLog = rfs.createStream("access.log", {
+    interval: "1d",
+    maxFiles: 14,
+    maxSize: "10M",
+    path: logDir,
+  });
+  app.use(morgan("combined", { stream: accessLog }));
+} else {
+  app.use(morgan("dev"));
+}
 
 // Security headers
 app.use(helmet());

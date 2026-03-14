@@ -15,7 +15,16 @@ function requireEnv(name: string, minLength = 0): string {
 export const JWT_SECRET = requireEnv("JWT_SECRET", 32);
 export const PORT       = process.env.PORT ?? "5000";
 
-// Comma-separated allowed origins. Defaults to localhost dev ports.
-// In production set: CORS_ORIGINS=https://your-app.com
-const rawOrigins = process.env.CORS_ORIGINS ?? "http://localhost:1420,http://localhost:5000,http://localhost:3000";
+// Allowed CORS origins.
+//
+// Defaults cover every legitimate Tauri client origin:
+//   http://localhost:1420   — Vite dev server (tauri dev)
+//   tauri://localhost        — Tauri production app (macOS / Linux)
+//   https://tauri.localhost  — Tauri production app (Windows WebView2)
+//
+// In production you can restrict further via CORS_ORIGINS env var:
+//   CORS_ORIGINS=tauri://localhost,https://tauri.localhost
+const rawOrigins = process.env.CORS_ORIGINS
+  ?? "http://localhost:1420,tauri://localhost,https://tauri.localhost";
+
 export const CORS_ORIGINS: string[] = rawOrigins.split(",").map((o) => o.trim()).filter(Boolean);
