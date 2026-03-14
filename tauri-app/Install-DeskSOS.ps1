@@ -126,6 +126,17 @@ function Invoke-DesktopInstall {
     Show-Header
     Show-SectionHeader "Desktop App - Install"
 
+    # Admin rights check - required for installation to Program Files
+    $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+                [Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-not $isAdmin) {
+        Write-Warn "Not running as Administrator - install to Program Files may fail."
+        Write-Info "Restart PowerShell as Administrator for a reliable install."
+        $confirm = Read-Host "  Continue anyway? [y/N]"
+        if ($confirm.ToUpper() -ne "Y") { Pause-Screen; return }
+    }
+
+
     $hasNsis = Test-Path $NSIS_EXE
     $hasMsi  = Test-Path $MSI_FILE
 
@@ -157,6 +168,15 @@ function Invoke-DesktopInstall {
         $installer = $NSIS_EXE
     } else {
         $installer = $MSI_FILE
+    }
+
+    # Stop running DeskSOS to prevent NSIS "file in use" / "error opening file for writing"
+    $running = Get-Process -Name "desksos" -ErrorAction SilentlyContinue
+    if ($running) {
+        Write-Warn "DeskSOS is running (PID $($running.Id)). Stopping it before install..."
+        Stop-Process -Name "desksos" -Force -ErrorAction SilentlyContinue
+        Start-Sleep -Seconds 2
+        Write-OK "Process stopped."
     }
 
     Write-Step "Launching installer: $(Split-Path -Leaf $installer)"
@@ -374,7 +394,7 @@ function Invoke-MobileSetup {
             Write-Step "Starting Metro bundler on port 8081..."
             $mobileDir = $MOBILE_DIR
             Start-Process powershell -ArgumentList "-NoExit", "-Command",
-                "Set-Location '$mobileDir'; npx react-native start --port 8081"
+                "Set-Location '$mobileDir'; npx @react-native-community/cli start --port 8081"
             Write-OK "Metro launched in new window."
         }
     }
@@ -390,7 +410,7 @@ function Invoke-VerifyAll {
     $results = [System.Collections.Generic.List[PSCustomObject]]::new()
 
     # Desktop app
-    $exePath = "C:\Program Files\DeskSOS\DeskSOS.exe"
+    $exePath = "C:\Program Files\DeskSOS\DeskSOSEXE\desksos.exe"
     if (Test-Path $exePath) {
         $fi = Get-Item $exePath
         Write-OK "Desktop app installed  ($([math]::Round($fi.Length/1MB,2)) MB)"
