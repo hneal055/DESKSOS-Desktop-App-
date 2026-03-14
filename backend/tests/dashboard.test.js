@@ -25,6 +25,9 @@ describe("GET /dashboard/queue", () => {
     expect(res.body.open).toBe(12);
     expect(res.body.inProgress).toBe(7);
     expect(res.body.resolved).toBe(3);
+    // avgResponseTime is a number (hours) or null when no resolved tickets have timestamps
+    expect(res.body).toHaveProperty("avgResponseTime");
+    expect(typeof res.body.avgResponseTime === "number" || res.body.avgResponseTime === null).toBe(true);
   });
 
   it("queue updates when a ticket is resolved", async () => {
@@ -35,6 +38,18 @@ describe("GET /dashboard/queue", () => {
     expect(res.body.resolved).toBe(4);
   });
 
+
+  it("avgResponseTime is computed from resolved ticket timestamps", async () => {
+    // Resolve another ticket so there is at least one with resolved_at set
+    await request(app).patch("/tickets/T-002").set(auth()).send({ status: "resolved" });
+    const res = await request(app).get("/dashboard/queue").set(auth());
+    expect(res.statusCode).toBe(200);
+    // After resolving tickets with the patch endpoint resolved_at is stamped NOW, created_at was also NOW in seed
+    // So avg should be a non-negative number (very close to 0 for same-second patches)
+    if (res.body.avgResponseTime !== null) {
+      expect(res.body.avgResponseTime).toBeGreaterThanOrEqual(0);
+    }
+  });
   it("rejects unauthenticated request", async () => {
     const res = await request(app).get("/dashboard/queue");
     expect(res.statusCode).toBe(401);

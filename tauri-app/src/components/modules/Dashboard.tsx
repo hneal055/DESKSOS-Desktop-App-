@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { api } from "../../api";
 import { invoke } from "@tauri-apps/api/core";
 
 interface SystemInfo {
@@ -87,9 +88,27 @@ export default function Dashboard() {
   const [startup, setStartup] = useState<StartupHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [startTime] = useState(() => new Date());
+  const [queue, setQueue] = useState<{ open: number; inProgress: number; resolved: number; avgResponseTime: number | null } | null>(null);
+  const [queueError, setQueueError] = useState(false);
 
   useEffect(() => {
     runStartupCheck();
+  }, []);
+
+  // Refresh queue counts on mount and every 60s
+  useEffect(() => {
+    const fetchQueue = async () => {
+      try {
+        const q = await api.getQueue();
+        setQueue(q);
+        setQueueError(false);
+      } catch {
+        setQueueError(true);
+      }
+    };
+    fetchQueue();
+    const timer = setInterval(fetchQueue, 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   const runStartupCheck = async () => {
@@ -277,6 +296,37 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Live Ticket Queue — from backend */}
+      <div className="bg-gray-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">
+            Ticket Queue
+          </h3>
+          {queueError && (
+            <span className="text-xs text-red-400">⚠ Could not reach server</span>
+          )}
+        </div>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-red-900/30 border border-red-700 rounded-lg p-3">
+            <div className="text-2xl font-bold text-red-300">{queue?.open ?? "—"}</div>
+            <div className="text-xs text-red-400 mt-1">Open</div>
+          </div>
+          <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-3">
+            <div className="text-2xl font-bold text-yellow-300">{queue?.inProgress ?? "—"}</div>
+            <div className="text-xs text-yellow-400 mt-1">In Progress</div>
+          </div>
+          <div className="bg-green-900/30 border border-green-700 rounded-lg p-3">
+            <div className="text-2xl font-bold text-green-300">{queue?.resolved ?? "—"}</div>
+            <div className="text-xs text-green-400 mt-1">Resolved</div>
+          </div>
+        </div>
+        {queue?.avgResponseTime != null && (
+          <p className="text-gray-400 text-xs mt-3 text-center">
+            Avg resolution time: <span className="text-white font-semibold">{queue.avgResponseTime}h</span>
+          </p>
+        )}
+      </div>
     </div>
   );
 }
