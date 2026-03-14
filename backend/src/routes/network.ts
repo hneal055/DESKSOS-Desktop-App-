@@ -1,9 +1,11 @@
 import { Router, Request, Response } from "express";
 import os from "os";
+import auth from "../middleware/auth.js";
+import { requireRole } from "../middleware/requireRole.js";
 
 const router = Router();
 
-router.get("/info", (_req: Request, res: Response): void => {
+router.get("/info", auth, requireRole("admin"), (_req: Request, res: Response): void => {
   const nets = os.networkInterfaces();
   let ipv4 = "N/A", ipv6 = "N/A", mac = "N/A";
   for (const iface of Object.values(nets)) {

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import auth from "../middleware/auth.js";
+import { requireRole } from "../middleware/requireRole.js";
 import db from "../db.js";
 import { TeamMember } from "../types/index.js";
 
@@ -12,7 +13,7 @@ router.get("/queue", auth, (_req: Request, res: Response): void => {
   res.json({ open, inProgress, resolved, avgResponseTime: 18 });
 });
 
-router.get("/team", auth, (_req: Request, res: Response): void => {
+router.get("/team", auth, requireRole("admin"), (_req: Request, res: Response): void => {
   const team = db.prepare(
     "SELECT id, name, status, active_tickets as activeTickets FROM team_members"
   ).all() as TeamMember[];
@@ -20,3 +21,4 @@ router.get("/team", auth, (_req: Request, res: Response): void => {
 });
 
 export default router;
+
