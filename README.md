@@ -1,410 +1,226 @@
-# DeskSOS - Desktop Support Toolkit
+# DeskSOS — Desktop Support Toolkit
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![Windows](https://img.shields.io/badge/platform-Windows-blue)
+![Platform](https://img.shields.io/badge/platform-Windows-blue)
 ![Tauri](https://img.shields.io/badge/Tauri-2.0-orange)
-![Rust](https://img.shields.io/badge/Rust-1.92-orange)
 ![React](https://img.shields.io/badge/React-18.3-61dafb)
-![Mobile](https://img.shields.io/badge/mobile-React%20Native%200.84-61dafb)
+![Node](https://img.shields.io/badge/Node.js-20-green)
+![Tests](https://img.shields.io/badge/tests-82%20passing-brightgreen)
 
-DeskSOS is a full IT support toolkit — a native Windows desktop application paired with a React Native mobile companion app. The desktop app provides system diagnostics, network troubleshooting, process management, and PowerShell automation. The mobile app extends the toolkit with real-time team chat, asset scanning, and remote queue visibility for technicians on the go.
-
-## 🎯 Overview
-
-DeskSOS Desktop is a lightweight, native Windows application designed for help desk analysts and desktop support technicians. It provides instant access to common troubleshooting tools without requiring a browser or network connectivity.
-
-**Perfect for:**
-- Help Desk Analysts performing first-line support
-- Desktop Support Technicians diagnosing issues
-- IT Administrators managing workstations
-- System Engineers running diagnostics
-
-## ✨ Key Features
-
-### 🏠 System Dashboard
-- Real-time system information (CPU, RAM, OS version)
-- Network health monitoring (Gateway, DNS, Internet, VPN)
-- Uptime tracking
-- Computer identification for ticketing
-
-### 🔧 Fix It Center
-**Network Tools:**
-- Flush DNS Cache - Clear DNS resolver cache
-- Renew IP Address - Request new DHCP address
-- Reset Network Stack - Full Winsock/TCP-IP reset
-
-**Printer Tools:**
-- Restart Print Spooler - Fix stuck print jobs
-- Clear Print Queue - Remove all queued documents
-
-**System Maintenance:**
-- Clear Temp Files - Free up disk space
-
-### 📊 Process Manager
-- View top processes by CPU/Memory usage
-- Kill unresponsive applications
-- Real-time resource monitoring
-- Safe process identification
-
-### 💻 PowerShell Console
-- Execute custom PowerShell commands
-- Built-in command validation
-- Output capture and display
-- Administrator permission handling
+DeskSOS is a native Windows desktop IT helpdesk application built with Tauri v2 + React 18. It pairs a feature-rich diagnostic front-end with a hardened Node.js + Express + TypeScript backend providing real-time chat, ticket management, remote session signaling, and live system monitoring.
 
 ---
 
-## 📱 DeskSOS Mobile (Companion App)
+## Features
 
-A React Native mobile application for Android and iOS, designed for IT technicians who need team visibility and asset management away from their desk.
+| Module | Description |
+|--------|-------------|
+| **Dashboard** | Live ticket queue stats (open / in-progress / resolved) |
+| **Ticket Builder** | Submit and track support tickets |
+| **Chat** | Real-time channels via Socket.IO (REST + WebSocket) |
+| **Remote Session** | WebRTC screen-share signaling with presence tracking |
+| **Network Tools** | Flush DNS, renew IP, reset Winsock, adapt info |
+| **Network Diagnostics** | Gateway / DNS / internet / VPN health checks |
+| **Network Fixes** | One-click common network remediations |
+| **Disk Health / Space** | SMART status and storage usage |
+| **Memory Consumers** | Top processes by RSS |
+| **Running Services** | Windows service status viewer |
+| **Event Log / Recent Errors** | System event viewer |
+| **Installed Software** | Asset software inventory |
+| **Windows Update** | Update status and pending patches |
 
-### Mobile Features
+---
 
-#### Dashboard
-
-- Live ticket queue metrics (Open / In Progress / Resolved)
-- Average response time tracking
-- Team member status board (online / away / offline) with active ticket counts
-- Pull-to-refresh
-
-#### Chat
-
-- Real-time team messaging via Socket.IO
-- Channel list with unread badge counts
-- Per-channel message history with timestamps
-
-#### Asset Management
-
-- QR code and barcode scanner (QR, Code-128, Code-39, EAN-13, Data Matrix)
-- Animated scan overlay with manual code entry fallback
-- Asset detail view (type, status, serial number, location, assigned user, maintenance history)
-
-#### Network Info
-
-- Live device network configuration (IPv4, IPv6, gateway, DNS servers, MAC address)
-
-#### Authentication
-
-- JWT-based login and registration
-- Persistent session via AsyncStorage
-- Biometric authentication support
-
-### Mobile Tech Stack
-
-| Layer | Technology |
-| ----- | ---------- |
-| Framework | React Native 0.84 |
-| Language | TypeScript |
-| Navigation | React Navigation 7 (stack + bottom tabs) |
-| State | React Query + Context API |
-| HTTP | Axios |
-| Real-time | Socket.IO client |
-| Camera | React Native Vision Camera |
-| Icons | Ionicons (react-native-vector-icons) |
-| Background | react-native-background-fetch |
-| Notifications | @notifee/react-native |
-
-### Mobile Project Structure
+## Architecture
 
 ```
-DeskSOSMobile/
-├── src/
-│   ├── config/
-│   │   └── environment.ts        # API base URL config (emulator / device / production)
-│   ├── context/
-│   │   └── AuthContext.tsx       # Auth state + JWT persistence
-│   ├── navigation/
-│   │   ├── RootNavigator.tsx     # Auth vs Main routing
-│   │   ├── AuthNavigator.tsx     # Login / Register stack
-│   │   ├── MainNavigator.tsx     # Bottom tab navigator
-│   │   ├── DashboardNavigator.tsx  # Dashboard → TicketList → TicketDetail stack
-│   │   ├── ChatNavigator.tsx     # Chat stack
-│   │   └── AssetNavigator.tsx    # Asset scanner stack
-│   ├── screens/
-│   │   ├── auth/                 # LoginScreen, RegisterScreen
-│   │   ├── dashboard/                # DashboardScreen (tappable metric cards)
-│   │   ├── tickets/                  # TicketListScreen, TicketDetailScreen
-│   │   ├── chat/                 # ChatListScreen, ChatChannelScreen
-│   │   ├── assets/               # AssetScannerScreen, AssetDetailScreen
-│   │   ├── network/              # NetworkScreen
-│   │   └── profile/              # ProfileScreen
-│   ├── services/
-│   │   ├── api.ts                # Axios instance
-│   │   ├── auth.ts               # Login/register calls
-│   │   ├── dashboard.ts              # Queue metrics + team data
-│   │   ├── tickets.ts                # Ticket list, detail, status update
-│   │   ├── chat.ts               # Channel/message calls
-│   │   ├── assets.ts             # Asset lookup by code
-│   │   ├── network.ts            # Network info
-│   │   └── socket.ts             # Socket.IO connection
-│   └── types/
-│       └── index.ts              # Shared TypeScript types
-└── package.json
-```
+tauri-app/                     Tauri v2 + React 18 + TypeScript + Vite + Tailwind
+  src/components/modules/      17 UI modules
+  src/contexts/AuthContext.tsx  JWT (in-memory — never localStorage)
+  e2e/                         Playwright end-to-end tests
 
-### Mobile API Targets
-
-Configure the backend target in `src/config/environment.ts`:
-
-```typescript
-// Switch between: 'emulator' | 'device' | 'production'
-const TARGET: Target = 'emulator';
-```
-
-| Target | Enterprise API | Network API |
-| ------ | -------------- | ----------- |
-| `emulator` | `http://10.0.2.2:5000` | `http://10.0.2.2:5000` |
-| `device` | `http://<LAN_IP>:5000` | `http://<LAN_IP>:5000` |
-| `production` | `https://<domain>/api` | `https://<domain>` |
-
-### Backend (Node.js/Express API)
-
-The mobile app requires the companion backend running at port 5000. **Always start it from the `backend/` directory** so `dotenv` finds `.env`:
-
-```powershell
-Set-Location C:\Projects\DESKSOS\backend
-node server.js
-# → Listening on http://0.0.0.0:5000
-```
-
-**Seeded credentials:** `admin@desksos.com` / `password123` · `tech@desksos.com` / `password123`
-
-**Seeded data:** 22 tickets (12 open / 7 in-progress / 3 resolved), 4 chat channels, 3 assets.
-### Mobile Development Setup
-
-**Prerequisites:** Node.js 22+, React Native CLI, Android Studio (Android) or Xcode (iOS)
-
-```bash
-cd DeskSOSMobile
-npm install
-
-# Android
-npm run android
-
-# iOS
-npm run ios
+backend/                       Node.js + Express + TypeScript (port 5000)
+  src/server.ts                TLS, Helmet, rate limiting, Morgan, Socket.IO
+  src/config.ts                Env validation (process.exit on bad config)
+  src/routes/                  auth, dashboard, chat, assets, network, tickets
+  src/db.ts                    better-sqlite3, seeded schema
+  src/validation.ts            Zod schemas for all endpoints
+  scripts/
+    start-production.ps1       Daily startup: build → backup → PM2 start/reload
+    backup-db.js               SQLite hot backup with rotation (14-day default)
+    rotate-secret.ps1          JWT secret rotation + PM2 reload
+    gen-cert.ps1               mkcert trusted cert (+ .NET self-signed fallback)
+  ecosystem.config.js          PM2 process supervisor config
 ```
 
 ---
 
-## 🚀 Quick Start
-
-### For End Users
-
-1. **Download Installer**
-   - MSI: `DeskSOS_1.0.0_x64_en-US.msi` (Enterprise/GPO deployment)
-   - EXE: `DeskSOS_1.0.0_x64-setup.exe` (Standalone installer)
-
-2. **Install**
-   ```powershell
-   # Double-click installer OR
-   # Silent install (admin required):
-   msiexec /i DeskSOS_1.0.0_x64_en-US.msi /quiet
-   ```
-
-3. **Launch**
-   - Desktop shortcut: `DeskSOS`
-   - Start menu: Search "DeskSOS"
-   - Direct: `C:\Program Files\DeskSOS\DeskSOS.exe`
-
-### For IT Administrators
-
-**Group Policy Deployment:**
-```powershell
-.\deployment-package\GPO-Deployment.ps1 -NetworkSharePath "\\server\share" -OUPath "OU=IT,DC=domain,DC=com"
-```
-
-**Manual Deployment:**
-```powershell
-.\deployment-package\Manual-Deployment.ps1
-```
-
-**Verify Installation:**
-```powershell
-.\deployment-package\Verify-Installation.ps1
-```
-
-See [USER-GUIDE.md](deployment-package/USER-GUIDE.md) for complete documentation.
-
-## 📋 System Requirements
-
-| Component | Requirement |
-|-----------|-------------|
-| **Operating System** | Windows 10 (1809+) or Windows 11 |
-| **RAM** | 100 MB minimum |
-| **Disk Space** | 10 MB |
-| **Permissions** | Standard user (some features require admin) |
-| **Network** | Offline capable |
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────┐
-│         React Frontend              │
-│    (Vite + TypeScript + Tailwind)   │
-├─────────────────────────────────────┤
-│         Tauri Runtime               │
-│         (WebView2)                  │
-├─────────────────────────────────────┤
-│         Rust Backend                │
-│   (System APIs + PowerShell)        │
-├─────────────────────────────────────┤
-│       Windows Native APIs           │
-└─────────────────────────────────────┘
-```
-
-## 🛠️ Technology Stack
-
-**Frontend:**
-- **Tauri 2.0** - Native desktop framework
-- **React 18.3** - UI library
-- **TypeScript** - Type safety
-- **Vite 6.4** - Build tool
-- **Tailwind CSS** - Styling
-
-**Backend:**
-- **Rust 1.92** - System operations
-- **Serde** - Serialization
-- **PowerShell** - Command execution
-
-**Build Tools:**
-- **WiX 3.14** - MSI installer generation
-- **NSIS 3.11** - EXE installer creation
-
-## 📦 Project Structure
-
-```
-DESKSOS/
-├── DeskSOSMobile/                # React Native companion app
-├── tauri-app/                    # Main application
-│   ├── src/                      # React frontend
-│   │   ├── App.tsx              # Main UI component
-│   │   └── main.tsx             # Entry point
-│   └── src-tauri/               # Rust backend
-│       ├── src/
-│       │   ├── lib.rs           # Command implementations
-│       │   └── main.rs          # Entry point
-│       ├── Cargo.toml           # Rust dependencies
-│       └── tauri.conf.json      # Tauri configuration
-├── backend/                      # Node.js + Express API (port 5000)
-├── deployment-package/           # Enterprise deployment
-│   ├── DeskSOS_1.0.0_x64_en-US.msi
-│   ├── DeskSOS_1.0.0_x64-setup.exe
-│   ├── GPO-Deployment.ps1
-│   ├── Manual-Deployment.ps1
-│   ├── Verify-Installation.ps1
-│   ├── Uninstall.ps1
-│   ├── README.md
-│   ├── QUICK-START.md
-│   └── USER-GUIDE.md            # Comprehensive manual
-└── README.md                     # This file
-```
-
-## 🔨 Development Setup
+## Quick Start — Development
 
 ### Prerequisites
 
-- **Node.js** 18+ and npm
-- **Rust** 1.92+ (install via [rustup](https://rustup.rs/))
-- **Visual Studio Build Tools** (Windows SDK)
+- Node.js 20+
+- Rust 1.75+ (`rustup install stable`)
+- Visual Studio Build Tools (Windows SDK)
 
-### Clone & Install
-
-```bash
+```powershell
 git clone https://github.com/hneal055/DESKSOS-Desktop-App-.git
 cd DESKSOS-Desktop-App-
+
+# Backend
+cd backend
+npm install
+cp .env.example .env          # fill in JWT_SECRET (see .env.example)
+npm run dev                   # starts on http://localhost:5000
+
+# Desktop app (new terminal)
 cd tauri-app
 npm install
-```
-
-### Run Development Mode
-
-```bash
 npm run tauri:dev
 ```
 
-### Build Production
-
-```bash
-npm run tauri:build
-```
-
-Output: `tauri-app/src-tauri/target/release/bundle/`
-
-## 🧪 Available Commands
-
-| Command | Description |
-|---------|-------------|
-| `npm run dev` | Start Vite dev server |
-| `npm run build` | Build frontend only |
-| `npm run tauri:dev` | Run Tauri app in dev mode |
-| `npm run tauri:build` | Build production installers |
-
-## 📖 Documentation
-
-- [USER-GUIDE.md](deployment-package/USER-GUIDE.md) - Complete user manual
-- [QUICK-START.md](deployment-package/QUICK-START.md) - Fast deployment guide
-- [deployment-package/README.md](deployment-package/README.md) - Package overview
-
-## 🔐 Security
-
-- **No External APIs** - Fully offline capable
-- **Native Windows APIs** - Direct system access
-- **No Data Collection** - No telemetry or tracking
-- **Admin Checks** - UAC prompts for privileged operations
-- **Safe Defaults** - Read-only operations when possible
-
-## 🚧 Roadmap
-
-- [ ] Active Directory module (user management)
-- [ ] SQLite knowledge base
-- [ ] Automated repair scripts
-- [ ] Remote assistance integration
-- [ ] Custom plugin system
-- [ ] Multi-monitor support
-- [ ] Dark/Light theme toggle
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is proprietary software for internal use only.
-
-**© 2026 DeskSOS Team. All rights reserved.**
-
-## 👥 Authors
-
-- **DeskSOS Team** - Initial work
-
-## 🐛 Bug Reports
-
-Found a bug? Please open an issue with:
-- Steps to reproduce
-- Expected behavior
-- Actual behavior
-- Screenshots (if applicable)
-- System information (from Dashboard)
-
-## 💬 Support
-
-- **Email:** it-support@company.com
-- **Issues:** [GitHub Issues](https://github.com/hneal055/DESKSOS-Desktop-App-/issues)
-- **Documentation:** [USER-GUIDE.md](deployment-package/USER-GUIDE.md)
-
-## 🙏 Acknowledgments
-
-- Built with [Tauri](https://tauri.app/)
-- UI components inspired by modern desktop applications
-- Icons from system libraries
+Default seeded credentials: `admin@desksos.com` / `password123`
 
 ---
 
-**Made with ❤️ for IT Support Teams**
+## Production Deployment
+
+### First-time setup
+
+```powershell
+# 1. Install PM2 globally
+npm install -g pm2
+
+# 2. Generate a TLS certificate (installs mkcert local CA — trusted by Tauri WebView)
+cd backend
+winget install FiloSottile.mkcert     # install mkcert (recommended)
+pwsh scripts/gen-cert.ps1             # creates backend/certs/server.crt + server.key
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env — set JWT_SECRET, TLS_CERT_PATH, TLS_KEY_PATH, NODE_ENV=production
+
+# 4. Register PM2 to start on OS boot
+pm2 startup
+pm2 save
+
+# 5. Daily startup (build + backup + start)
+pwsh scripts/start-production.ps1
+```
+
+### Daily startup
+
+```powershell
+cd backend
+pwsh scripts/start-production.ps1        # build → backup → PM2 start/reload
+
+# Or via npm:
+npm run start:daily
+```
+
+This single script:
+1. Compiles TypeScript → `dist/`
+2. Hot-backs up `desksos.db` to `data/backups/` (keeps 14 days)
+3. Starts or zero-downtime reloads the PM2 process
+
+Use `-SkipBuild` if the binary is already compiled: `pwsh scripts/start-production.ps1 -SkipBuild`
+
+### Common operations
+
+| Task | Command |
+|------|---------|
+| View process status | `pm2 status` |
+| Tail logs | `pm2 logs desksos-backend` |
+| Zero-downtime reload | `pm2 reload desksos-backend` |
+| Manual DB backup | `npm run backup` |
+| Rotate JWT secret | `pwsh scripts/rotate-secret.ps1 -Restart` |
+| Regenerate TLS cert | `pwsh scripts/gen-cert.ps1` |
+
+---
+
+## Testing
+
+```powershell
+# Backend (Jest + Supertest) — 57 tests, 8 suites
+cd backend && npm test
+
+# Frontend (Vitest + React Testing Library) — 16 tests
+cd tauri-app && npm test
+
+# End-to-end (Playwright + Chromium) — 9 tests
+cd tauri-app && npm run test:e2e
+```
+
+CI runs all three suites on every push: `backend → desktop → e2e`
+
+---
+
+## Security
+
+| Control | Implementation |
+|---------|---------------|
+| Input validation | Zod schemas on every endpoint |
+| Auth | bcrypt, JWT in-memory only, 32-char minimum secret |
+| Rate limiting | 200 req/15 min global · 20 req/15 min on `/auth` |
+| Security headers | Helmet |
+| CORS | Locked to Tauri origins (`tauri://localhost`, `https://tauri.localhost`) |
+| TLS | Enforced in production (`process.exit(1)` if cert not configured) |
+| CSP | Strict Tauri Content Security Policy |
+| RBAC | Role-based access control middleware on all routes |
+| Logging | Rotating daily access log (14-day retention, 10 MB max) |
+| Secrets | `JWT_SECRET` never in source; `rotate-secret.ps1` for rotation |
+
+---
+
+## Environment Variables
+
+See [backend/.env.example](backend/.env.example) for full documentation.
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `JWT_SECRET` | ✅ | Min 32 chars — generate: `node -e "console.log(require('crypto').randomBytes(64).toString('base64'))"` |
+| `PORT` | no | API port (default: 5000) |
+| `NODE_ENV` | no | `development` / `production` / `test` |
+| `TLS_CERT_PATH` | prod | Path to PEM certificate |
+| `TLS_KEY_PATH` | prod | Path to PEM private key |
+| `CORS_ORIGINS` | no | Comma-separated allowed origins |
+| `DATABASE_PATH` | no | SQLite path (default: `./data/desksos.db`) |
+| `BACKUP_DIR` | no | Backup directory (default: `./data/backups`) |
+| `BACKUP_KEEP` | no | Days of backups to retain (default: 14) |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Desktop shell | Tauri v2 + WebView2 |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Backend | Node.js 20, Express 5, TypeScript strict |
+| Database | SQLite via better-sqlite3 |
+| Real-time | Socket.IO 4 |
+| Auth | JWT + bcrypt |
+| Validation | Zod |
+| Process manager | PM2 |
+| Backend tests | Jest + Supertest |
+| Frontend tests | Vitest + React Testing Library |
+| E2E tests | Playwright + Chromium |
+| CI | GitHub Actions |
+
+---
+
+## System Requirements
+
+| Component | Requirement |
+|-----------|-------------|
+| OS | Windows 10 (1809+) or Windows 11 |
+| RAM | 256 MB minimum |
+| Disk | 50 MB + database |
+| Node.js | 20+ (backend host) |
+| Permissions | Standard user (some diagnostics require admin) |
+
+---
+
+## License
+
+Proprietary — internal use only. © 2026 DeskSOS Team. All rights reserved.
