@@ -1,7 +1,13 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
+let _token: string | null = null;
+
+export function setApiToken(token: string | null): void {
+  _token = token;
+}
+
 function getToken(): string | null {
-  return localStorage.getItem("desksos_token");
+  return _token;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {

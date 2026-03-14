@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import { api, AuthUser, ApiError } from "../api";
+import { api, setApiToken, AuthUser, ApiError } from "../api";
 
 interface AuthState {
   user: AuthUser | null;
@@ -12,25 +12,18 @@ interface AuthState {
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(() =>
-    localStorage.getItem("desksos_token")
-  );
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const raw = localStorage.getItem("desksos_user");
-    return raw ? (JSON.parse(raw) as AuthUser) : null;
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.login(email, password);
-    localStorage.setItem("desksos_token", data.token);
-    localStorage.setItem("desksos_user", JSON.stringify(data.user));
+    setApiToken(data.token);
     setToken(data.token);
     setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("desksos_token");
-    localStorage.removeItem("desksos_user");
+    setApiToken(null);
     setToken(null);
     setUser(null);
   }, []);
