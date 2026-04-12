@@ -25,6 +25,6 @@ export const PORT       = process.env.PORT ?? "5000";
 // In production you can restrict further via CORS_ORIGINS env var:
 //   CORS_ORIGINS=tauri://localhost,https://tauri.localhost
 const rawOrigins = process.env.CORS_ORIGINS
-  ?? "http://localhost:1420,tauri://localhost,https://tauri.localhost";
+  ?? "http://localhost:1420,tauri://localhost,https://tauri.localhost,http://tauri.localhost";
 
 export const CORS_ORIGINS: string[] = rawOrigins.split(",").map((o) => o.trim()).filter(Boolean);
