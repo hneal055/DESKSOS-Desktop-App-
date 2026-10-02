@@ -14,9 +14,9 @@ export default defineConfig({
   server: {
     port: 1420,
     strictPort: true,
+    host: "127.0.0.1", // Explicitly binds to IPv4 localhost to prevent connection mismatches on Windows
     watch: {
       ignored: ["**/src-tauri/**"],
     },
   },
 });
-
