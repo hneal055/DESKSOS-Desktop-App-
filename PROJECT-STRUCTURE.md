@@ -70,7 +70,7 @@ npm run tauri:build        # Build MSI/EXE installers
 ### Backend API
 ```powershell
 cd backend                 # MUST be backend/ dir for .env to load
-npm run dev                # ts-node src/server.ts on http://0.0.0.0:5000
+npm run dev                # tsx watch src/server.ts on http://0.0.0.0:5000
 # Production: npm run build && npm start   (runs dist/server.js)
 ```
 

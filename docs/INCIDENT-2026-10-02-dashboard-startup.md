@@ -117,14 +117,15 @@ Default login: `admin@desksos.com` / `password123`
 | `backend/.env` | `JWT_SECRET` rotated (not committed; file is gitignored) |
 | `tauri-app/src/App.tsx`, `src-tauri/src/lib.rs`, `src-tauri/Cargo.toml` | Uncommitted changes reverted to the committed versions (backups in `C:\tmp\desksos-rewrite-backup\`) |
 
-None of these changes are committed yet.
+Committed in `6a6ee7f` on branch `fix/local-dashboard-startup`.
 
 ---
 
 ## Follow-up items
 
 1. **User-level `JWT_SECRET` variable:** confirm which project needs it. Remove it, or make it at least 32 characters, so the backend and the installer's "Start backend" option work without the per-process override.
-2. **`npm run dev` is broken:** fix how `ts-node` resolves the `.js` import paths. Until then, `PROJECT-STRUCTURE.md` points to a dev command that doesn't work.
+2. ~~**`npm run dev` is broken.**~~ **Resolved:** `ts-node` was replaced with `tsx` (`tsx watch src/server.ts`), which resolves the `.js` import paths and restarts on file changes.
 3. **CORS rejection returns HTTP 500:** `backend/src/server.ts:51` passes an `Error` to the CORS callback. Using `callback(null, false)` would give a normal rejection.
 4. **Leftover old backend files:** `backend/routes/`, `backend/middleware/`, `backend/data/store.js` and `backend/db.js` were only used by the deleted `server.js` and can probably be removed.
 5. **Port conflict:** decide whether this project should keep using 5001 locally, or whether the other project's PM2 service should move.
+6. **Resolved: dependency versions weren't locked.** `package-lock.json` and `Cargo.lock` were gitignored, so every install could pick up different versions. They are now committed, and the backend Dockerfile uses `npm ci` with a `.dockerignore`.
