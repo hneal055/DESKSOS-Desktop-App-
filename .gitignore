@@ -37,3 +37,8 @@ Thumbs.db
 
 # Rust
 **/*.rs.bk
+
+# Production database (real accounts) and SQLite temp files
+backend/data/desksos-prod.db*
+backend/data/*.db-wal
+backend/data/*.db-shm
