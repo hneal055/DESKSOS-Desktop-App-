@@ -6,35 +6,12 @@ $RootPath = $PSScriptRoot  # the folder this script lives in, so it never points
 $BackendPath = Join-Path $RootPath "backend"
 $TauriAppPath = Join-Path $RootPath "tauri-app"
 
-Write-Host "🧹 [1/4] Terminating active Node, Rust, and Tauri processes..." -ForegroundColor Cyan
-# Spare PM2 (the production backend on 5443 runs under it on this PC)
-Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
-    Where-Object { $_.CommandLine -notmatch '[\\/]pm2[\\/]' } |
-    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
-Get-Process desksos -ErrorAction SilentlyContinue | Stop-Process -Force
-Get-Process cargo -ErrorAction SilentlyContinue | Stop-Process -Force
+Write-Host "🧹 [1/2] Stopping this repo's dev processes, freeing ports, clearing Vite cache..." -ForegroundColor Cyan
+# clean-env.ps1 stops only processes attributed to this repo; other projects
+# (e.g. the Enterprise backend on port 5000) and PM2/production are left running.
+& (Join-Path $RootPath "clean-env.ps1")
 
-Write-Host "🔌 [2/4] Freeing up local development ports (5000, 5001, 1420)..." -ForegroundColor Cyan
-$ports = @(5000, 5001, 1420)
-foreach ($port in $ports) {
-    $connections = Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue
-    foreach ($conn in $connections) {
-        $processId = $conn.OwningProcess
-        if ($processId -and $processId -ne 0) {
-            Write-Host " -> Stopping Process ID $processId holding port $port" -ForegroundColor Yellow
-            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-        }
-    }
-}
-
-Write-Host "🗑️ [3/4] Clearing Vite compilation caches..." -ForegroundColor Cyan
-$viteCachePath = Join-Path $TauriAppPath "node_modules\.vite"
-if (Test-Path $viteCachePath) {
-    Remove-Item -Recurse -Force $viteCachePath
-    Write-Host " -> Cleared Vite cache successfully." -ForegroundColor Green
-}
-
-Write-Host "🚀 [4/4] Launching Backend and Tauri Frontend concurrently..." -ForegroundColor Cyan
+Write-Host "🚀 [2/2] Launching Backend and Tauri Frontend concurrently..." -ForegroundColor Cyan
 
 # 1. Launch Backend Gateway in a split PowerShell window
 #    JWT_SECRET is cleared so backend/.env supplies it: dotenv never overrides an

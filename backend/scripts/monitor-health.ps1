@@ -40,19 +40,23 @@ function Write-Log([string]$Message) {
     Write-Host $line
 }
 
+# Returns $false only when an email was attempted and failed, so the caller can
+# keep the previous state and retry the alert on the next run.
 function Send-Alert([string]$Subject, [string]$Body) {
     Write-Log "ALERT: $Subject"
     if (-not ($env:ALERT_SMTP_HOST -and $env:ALERT_TO -and $env:ALERT_SMTP_USER)) {
         Write-Log "  (email not configured; set ALERT_SMTP_* and ALERT_TO to receive alerts)"
-        return
+        return $true
     }
     try {
         $cred = [pscredential]::new($env:ALERT_SMTP_USER, (ConvertTo-SecureString $env:ALERT_SMTP_PASS -AsPlainText -Force))
         Send-MailMessage -SmtpServer $env:ALERT_SMTP_HOST -Port ([int]($env:ALERT_SMTP_PORT ?? 587)) -UseSsl `
             -Credential $cred -From $env:ALERT_SMTP_USER -To $env:ALERT_TO `
             -Subject "[DeskSOS] $Subject" -Body $Body -WarningAction SilentlyContinue -ErrorAction Stop
+        return $true
     } catch {
-        Write-Log "  Email failed: $($_.Exception.Message)"
+        Write-Log "  Email failed: $($_.Exception.Message) (will retry next run)"
+        return $false
     }
 }
 
@@ -70,14 +74,17 @@ try {
     $detail = $_.Exception.Message
 }
 
+# Record a state change only once its alert has gone out; a failed email leaves
+# the old state in place so the transition (and its alert) is retried next run.
+$delivered = $true
 if ($isUp -and -not $wasUp) {
-    Send-Alert "Backend recovered" "DeskSOS backend at $Url is responding again.`n`n$detail"
+    $delivered = Send-Alert "Backend recovered" "DeskSOS backend at $Url is responding again.`n`n$detail"
 } elseif (-not $isUp -and $wasUp) {
-    Send-Alert "Backend DOWN" "DeskSOS backend at $Url failed its health check.`n`n$detail`n`nOn the server: pm2 status / pm2 logs desksos-backend"
+    $delivered = Send-Alert "Backend DOWN" "DeskSOS backend at $Url failed its health check.`n`n$detail`n`nOn the server: pm2 status / pm2 logs desksos-backend"
 } elseif (-not $isUp) {
     Write-Log "Still down: $detail"
 }
-$state.up = $isUp
+if ($delivered) { $state.up = $isUp }
 
 # ── TLS certificate expiry (https only, at most one warning per day) ──────────
 $uri = [uri]$Url
@@ -90,8 +97,9 @@ if ($isUp -and $uri.Scheme -eq "https" -and $state.certWarned -ne (Get-Date -For
         $ssl.Dispose(); $tcp.Dispose()
         $daysLeft = [int]($expires - (Get-Date)).TotalDays
         if ($daysLeft -le $CertWarnDays) {
-            Send-Alert "TLS certificate expires in $daysLeft day(s)" "The certificate for $($uri.Host) expires on $expires. Renew it (scripts/gen-cert.ps1) and run: pm2 reload desksos-backend"
-            $state.certWarned = Get-Date -Format "yyyy-MM-dd"
+            if (Send-Alert "TLS certificate expires in $daysLeft day(s)" "The certificate for $($uri.Host) expires on $expires. Renew it (scripts/gen-cert.ps1) and run: pm2 reload desksos-backend") {
+                $state.certWarned = Get-Date -Format "yyyy-MM-dd"
+            }
         }
     } catch {
         Write-Log "Certificate check failed: $($_.Exception.Message)"

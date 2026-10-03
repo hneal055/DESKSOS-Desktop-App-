@@ -264,14 +264,13 @@ function Invoke-BackendStart {
     }
 
     $backendDir = $BACKEND_DIR
-    if (-not (Test-Path (Join-Path $backendDir "dist\server.js"))) {
-        Write-Step "Compiling backend (npm run build)..."
-        Push-Location $backendDir
-        npm run build --silent
-        $buildExit = $LASTEXITCODE
-        Pop-Location
-        if ($buildExit -ne 0) { Write-Fail "Backend build failed."; Pause-Screen; return }
-    }
+    # Always compile: an existing dist\server.js may be older than the source
+    Write-Step "Compiling backend (npm run build)..."
+    Push-Location $backendDir
+    npm run build --silent
+    $buildExit = $LASTEXITCODE
+    Pop-Location
+    if ($buildExit -ne 0) { Write-Fail "Backend build failed."; Pause-Screen; return }
 
     Write-Step "Starting backend API in background..."
     $job = Start-Job -Name "Backend" -ScriptBlock {

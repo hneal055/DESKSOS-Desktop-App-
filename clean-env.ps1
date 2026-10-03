@@ -23,15 +23,11 @@ function Test-IsRepoProcess($proc) {
     return $text -like "*$RepoRoot*"
 }
 
-# True if a node process runs a script given by an absolute path outside this
-# repo (e.g. PM2, global CLIs). Relative-path commands such as
-# "node dist/server.js" can't be attributed and are treated as DeskSOS's.
+# Only processes positively attributed to this repo count as DeskSOS's.
+# Anything else (other projects such as the Enterprise backend on 5000, PM2,
+# or elevated processes whose command line can't be read) is left running.
 function Test-IsForeignNode($proc) {
-    if (-not $proc -or $proc.Name -ne 'node.exe') { return $true }
-    if (Test-IsRepoProcess $proc) { return $false }
-    # Drop the leading executable token, then look for an absolute path
-    $scriptArgs = $proc.CommandLine -replace '^\s*("[^"]*"|\S+)\s*', ''
-    return $scriptArgs -match '[A-Za-z]:[\\/]'
+    return -not (Test-IsRepoProcess $proc)
 }
 
 function Stop-Tree([int]$ProcessId, [string]$Label) {

@@ -311,12 +311,16 @@ Once section 3 is done, nothing needs to be started by hand.
 ### 4.4 Restoring a backup
 
 ```powershell
-pm2 stop desksos-backend
-Copy-Item data\desksos-prod.db data\desksos-prod.db.before-restore
+pwsh scripts/backup-prod.ps1      # 1. consistent rollback copy (includes WAL changes) in data\backups
+pm2 stop desksos-backend          # 2. Administrator window
 Remove-Item data\desksos-prod.db-wal, data\desksos-prod.db-shm -ErrorAction SilentlyContinue
 Copy-Item data\backups\desksos-<timestamp>.db data\desksos-prod.db
 pm2 start desksos-backend
 ```
+
+Step 1 matters: copying `desksos-prod.db` by hand misses recent changes that
+are still in the `-wal` file. To undo a bad restore, restore the backup taken
+in step 1 the same way.
 
 ---
 

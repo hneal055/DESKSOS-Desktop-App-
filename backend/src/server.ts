@@ -108,7 +108,8 @@ const authLimiter = rateLimit({
 // database reports 503 instead of a false "ok".
 app.get("/health", (_req, res) => {
   try {
-    db.prepare("SELECT 1").get();
+    // Read a real table: "SELECT 1" succeeds without touching the database file
+    db.prepare("SELECT COUNT(*) AS n FROM users").get();
     res.json({ status: "ok", db: "ok", uptime: Math.round(process.uptime()) });
   } catch (err) {
     console.error(`[health] Database check failed: ${(err as Error).message}`);
