@@ -1,4 +1,4 @@
-# ==============================================================================
+﻿# ==============================================================================
 # DeskSOS Complete Clean & Master Startup Script
 # ==============================================================================
 
@@ -7,7 +7,10 @@ $BackendPath = Join-Path $RootPath "backend"
 $TauriAppPath = Join-Path $RootPath "tauri-app"
 
 Write-Host "🧹 [1/4] Terminating active Node, Rust, and Tauri processes..." -ForegroundColor Cyan
-Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force
+# Spare PM2 (the production backend on 5443 runs under it on this PC)
+Get-CimInstance Win32_Process -Filter "Name='node.exe'" |
+    Where-Object { $_.CommandLine -notmatch '[\\/]pm2[\\/]' } |
+    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 Get-Process desksos -ErrorAction SilentlyContinue | Stop-Process -Force
 Get-Process cargo -ErrorAction SilentlyContinue | Stop-Process -Force
 
@@ -34,12 +37,14 @@ if (Test-Path $viteCachePath) {
 Write-Host "🚀 [4/4] Launching Backend and Tauri Frontend concurrently..." -ForegroundColor Cyan
 
 # 1. Launch Backend Gateway in a split PowerShell window
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; Write-Host '===============================' -ForegroundColor DarkGray; Write-Host ' DeskSOS Backend Gateway' -ForegroundColor Green; Write-Host '===============================' -ForegroundColor DarkGray; npm run dev"
+#    JWT_SECRET is cleared so backend/.env supplies it: dotenv never overrides an
+#    existing variable, and a stale Windows user-level JWT_SECRET would win.
+Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$BackendPath'; Remove-Item Env:JWT_SECRET -ErrorAction SilentlyContinue; Write-Host '===============================' -ForegroundColor DarkGray; Write-Host ' DeskSOS Backend Gateway' -ForegroundColor Green; Write-Host '===============================' -ForegroundColor DarkGray; npm run dev"
 
 # Brief pause to let the backend bind its port safely
 Start-Sleep -Seconds 2
 
 # 2. Launch Tauri Frontend / Desktop Wrapper in a split PowerShell window
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd '$TauriAppPath'; Write-Host '===============================' -ForegroundColor DarkGray; Write-Host ' DeskSOS Tauri Desktop App' -ForegroundColor Blue; Write-Host '===============================' -ForegroundColor DarkGray; npm run tauri dev"
+Start-Process pwsh -ArgumentList "-NoExit", "-Command", "cd '$TauriAppPath'; Write-Host '===============================' -ForegroundColor DarkGray; Write-Host ' DeskSOS Tauri Desktop App' -ForegroundColor Blue; Write-Host '===============================' -ForegroundColor DarkGray; npm run tauri dev"
 
 Write-Host "✨ Master startup sequence complete! Check the new terminal windows and desktop app." -ForegroundColor Green
