@@ -21,6 +21,12 @@ describe("GET /health", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body).toHaveProperty("status", "ok");
   });
+
+  it("reports the database as reachable", async () => {
+    const res = await request(app).get("/health");
+    expect(res.body).toHaveProperty("db", "ok");
+    expect(typeof res.body.uptime).toBe("number");
+  });
 });
 
 describe("Global error handler", () => {
