@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "../../api";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
 
 interface SystemInfo {
   computer_name: string;
@@ -90,6 +90,9 @@ export default function Dashboard() {
   const [startTime] = useState(() => new Date());
   const [queue, setQueue] = useState<{ open: number; inProgress: number; resolved: number; avgResponseTime: number | null } | null>(null);
   const [queueError, setQueueError] = useState(false);
+  // Local diagnostics need the Tauri IPC bridge; a plain browser tab (vite dev on :1420) has none.
+  const desktop = isTauri();
+  const [checkError, setCheckError] = useState(false);
 
   useEffect(() => {
     runStartupCheck();
@@ -112,7 +115,12 @@ export default function Dashboard() {
   }, []);
 
   const runStartupCheck = async () => {
+    if (!desktop) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
+    setCheckError(false);
 
     const diskCmd =
       `$warn=$false;$detail='';` +
@@ -156,6 +164,7 @@ export default function Dashboard() {
       setStartup({ diskWarning, diskDetail: diskDetail?.trim() || "", errorCount, daysSinceUpdate, lastKB: lastKB?.trim() || "N/A" });
     } catch (err) {
       console.error("Startup check failed:", err);
+      setCheckError(true);
     } finally {
       setLoading(false);
     }
@@ -169,8 +178,11 @@ export default function Dashboard() {
     return "fail";
   };
 
+  // Shown on cards when local checks can't produce data
+  const unavailable = !desktop ? "Desktop app only" : checkError ? "Check failed" : null;
+
   const networkPrimary = () => {
-    if (!netHealth) return "Checking...";
+    if (!netHealth) return unavailable ?? "Checking...";
     if (netHealth.internet_ping) return "Internet connected";
     if (netHealth.gateway_ping) return "Gateway OK — no internet";
     return "Gateway unreachable";
@@ -233,6 +245,12 @@ export default function Dashboard() {
         </button>
       </div>
 
+      {!desktop && (
+        <div className="rounded-lg border border-yellow-700 bg-yellow-900/20 px-4 py-3 text-sm text-yellow-200">
+          Running in a browser — local machine diagnostics are only available in the DeskSOS desktop app.
+        </div>
+      )}
+
       {/* Health cards */}
       <div className="grid grid-cols-2 gap-4">
         <StatusCard
@@ -240,13 +258,13 @@ export default function Dashboard() {
           title="Network"
           status={networkStatus()}
           primary={networkPrimary()}
-          secondary={netHealth?.vpn_status !== "Disconnected" ? `VPN: ${netHealth?.vpn_status}` : undefined}
+          secondary={netHealth?.vpn_status && netHealth.vpn_status !== "Disconnected" ? `VPN: ${netHealth.vpn_status}` : undefined}
         />
         <StatusCard
           icon="💾"
           title="Disk Space"
           status={diskStatus()}
-          primary={startup?.diskWarning ? `Low space: ${startup.diskDetail}` : "All drives healthy"}
+          primary={!startup ? unavailable ?? "Checking..." : startup.diskWarning ? `Low space: ${startup.diskDetail}` : "All drives healthy"}
           secondary={sysInfo?.disk_space_gb ? `C: ${sysInfo.disk_space_gb}` : undefined}
         />
         <StatusCard
@@ -254,9 +272,11 @@ export default function Dashboard() {
           title="Event Log (24h)"
           status={eventStatus()}
           primary={
-            startup?.errorCount === 0
+            !startup
+              ? unavailable ?? "Checking..."
+              : startup.errorCount === 0
               ? "No critical errors"
-              : `${startup?.errorCount} critical/error event${startup?.errorCount !== 1 ? "s" : ""}`
+              : `${startup.errorCount} critical/error event${startup.errorCount !== 1 ? "s" : ""}`
           }
           secondary="System + Application logs"
         />
@@ -265,11 +285,13 @@ export default function Dashboard() {
           title="Windows Update"
           status={updateStatus()}
           primary={
-            startup?.daysSinceUpdate === 999
+            !startup
+              ? unavailable ?? "Checking..."
+              : startup.daysSinceUpdate === 999
               ? "No update history found"
-              : `Last updated ${startup?.daysSinceUpdate}d ago`
+              : `Last updated ${startup.daysSinceUpdate}d ago`
           }
-          secondary={startup?.lastKB !== "N/A" ? startup?.lastKB : undefined}
+          secondary={startup && startup.lastKB !== "N/A" ? startup.lastKB : undefined}
         />
       </div>
 
