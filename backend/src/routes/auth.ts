@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID as uuidv4 } from "crypto";
 import db from "../db.js";
 import { JWT_SECRET } from "../config.js";
 import { User, SafeUser, JwtPayload } from "../types/index.js";

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID as uuidv4 } from "crypto";
 import auth from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import db from "../db.js";

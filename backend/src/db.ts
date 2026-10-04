@@ -2,7 +2,7 @@ import crypto from "crypto";
 import path from "path";
 import Database, { Database as DB } from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID as uuidv4 } from "crypto";
 
 const DB_PATH: string =
   process.env.DATABASE_PATH ?? path.join(__dirname, "..", "data", "desksos.db");
