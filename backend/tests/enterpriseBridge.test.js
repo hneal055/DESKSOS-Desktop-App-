@@ -69,6 +69,7 @@ describe("payload mapping", () => {
     expect(buildPayload({ ...base, priority: "P1" }, "s").severity).toBe("CRITICAL");
     expect(buildPayload({ ...base, priority: "P2" }, "s").severity).toBe("HIGH");
     expect(buildPayload({ ...base, priority: "P3" }, "s").severity).toBe("MEDIUM");
+    expect(buildPayload({ ...base, priority: "P4" }, "s").severity).toBe("LOW");
   });
 
   it("uses the ticket ID as externalId and carries people fields", () => {

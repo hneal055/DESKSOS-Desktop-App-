@@ -37,6 +37,7 @@ const SEVERITY_BY_PRIORITY: Record<Ticket["priority"], string> = {
   P1: "CRITICAL",
   P2: "HIGH",
   P3: "MEDIUM",
+  P4: "LOW",
 };
 
 const BASE_DELAY_MS = 30_000;

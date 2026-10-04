@@ -13,7 +13,7 @@ export interface Ticket {
   title: string;
   description: string;
   status: "open" | "in-progress" | "resolved";
-  priority: "P1" | "P2" | "P3";
+  priority: "P1" | "P2" | "P3" | "P4";
   assignee_id: string | null;
   assignee_name: string | null;
   requester: string | null;
@@ -27,7 +27,7 @@ export interface TicketResponse {
   title: string;
   description: string;
   status: "open" | "in-progress" | "resolved";
-  priority: "P1" | "P2" | "P3";
+  priority: "P1" | "P2" | "P3" | "P4";
   assigneeId: string | null;
   assigneeName: string | null;
   requester: string | null;

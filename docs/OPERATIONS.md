@@ -280,7 +280,8 @@ How delivery works:
   The queue survives restarts.
 - If Enterprise rejects the ticket itself (400), it's marked `failed` and not
   retried.
-- Priorities map to severities: P1 → CRITICAL, P2 → HIGH, P3 → MEDIUM.
+- Priorities map to severities: P1 (Critical) → CRITICAL, P2 (High) → HIGH,
+  P3 (Medium) → MEDIUM, P4 (Low) → LOW.
 - Status changes made later in Desktop are not forwarded.
 
 Check the queue:

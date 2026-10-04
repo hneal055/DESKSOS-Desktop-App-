@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import TicketBuilder from "../components/modules/TicketBuilder";
+import TicketBuilder, { PRIORITY_CODE } from "../components/modules/TicketBuilder";
 
 // Mock Tauri invoke
 vi.mock("@tauri-apps/api/core", () => ({
@@ -33,6 +33,10 @@ describe("TicketBuilder", () => {
     expect(labels).toContain("Medium");
     expect(labels).toContain("High");
     expect(labels).toContain("Critical");
+  });
+
+  it("maps each priority level to its own backend code", () => {
+    expect(PRIORITY_CODE).toEqual({ Critical: "P1", High: "P2", Medium: "P3", Low: "P4" });
   });
 
   it("allows typing in issue description field", () => {

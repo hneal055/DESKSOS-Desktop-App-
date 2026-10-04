@@ -9,7 +9,7 @@ import { enqueueTicket, kickBridge } from "../enterpriseBridge.js";
 
 const router = Router();
 
-const PRIORITY: Record<string, number> = { P1: 0, P2: 1, P3: 2 };
+const PRIORITY: Record<string, number> = { P1: 0, P2: 1, P3: 2, P4: 3 };
 
 function toTicket(t: Ticket): TicketResponse {
   return {
