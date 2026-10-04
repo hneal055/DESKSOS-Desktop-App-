@@ -126,6 +126,6 @@ Committed in `6a6ee7f` on branch `fix/local-dashboard-startup`.
 1. **User-level `JWT_SECRET` variable:** confirm which project needs it. Remove it, or make it at least 32 characters, so the backend and the installer's "Start backend" option work without the per-process override.
 2. ~~**`npm run dev` is broken.**~~ **Resolved:** `ts-node` was replaced with `tsx` (`tsx watch src/server.ts`), which resolves the `.js` import paths and restarts on file changes.
 3. **CORS rejection returns HTTP 500:** `backend/src/server.ts:51` passes an `Error` to the CORS callback. Using `callback(null, false)` would give a normal rejection.
-4. **Leftover old backend files:** `backend/routes/`, `backend/middleware/`, `backend/data/store.js` and `backend/db.js` were only used by the deleted `server.js` and can probably be removed.
+4. ~~**Leftover old backend files.**~~ **Resolved:** `backend/routes/`, `backend/middleware/`, `backend/data/store.js` and `backend/db.js` were only used by the deleted `server.js` and have been removed.
 5. **Port conflict:** decide whether this project should keep using 5001 locally, or whether the other project's PM2 service should move.
 6. **Resolved: dependency versions weren't locked.** `package-lock.json` and `Cargo.lock` were gitignored, so every install could pick up different versions. They are now committed, and the backend Dockerfile uses `npm ci` with a `.dockerignore`.
