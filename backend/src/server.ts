@@ -17,6 +17,7 @@ import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import db from "./db.js";
+import { startBridge } from "./enterpriseBridge.js";
 
 import authRoute      from "./routes/auth.js";
 import dashboardRoute from "./routes/dashboard.js";
@@ -199,6 +200,7 @@ if (require.main === module) {
   server.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`DeskSOS API running on ${tlsCert && tlsKey ? "https" : "http"}://0.0.0.0:${PORT}`);
     console.log(`  CORS origins: ${CORS_ORIGINS.join(", ")}`);
+    startBridge();
   });
 
   server.on("error", (err: NodeJS.ErrnoException) => {

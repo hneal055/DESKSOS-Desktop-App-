@@ -4,6 +4,8 @@ import { validate } from "../middleware/validate.js";
 import db from "../db.js";
 import { Ticket, TicketResponse } from "../types/index.js";
 import { CreateTicketSchema, PatchTicketSchema, CreateTicketInput, PatchTicketInput } from "../validation.js";
+import { BRIDGE_ENABLED } from "../config.js";
+import { enqueueTicket, kickBridge } from "../enterpriseBridge.js";
 
 const router = Router();
 
@@ -46,14 +48,20 @@ router.post("/", auth, validate(CreateTicketSchema), (req: Request, res: Respons
   const { title, description, priority, assigneeId, assigneeName, requester } = req.body as CreateTicketInput;
   const now = new Date().toISOString();
   const id  = "T-" + Date.now().toString().slice(-8);
-  db.prepare(`
-    INSERT INTO tickets
-      (id,title,description,status,priority,assignee_id,assignee_name,requester,created_at,updated_at,resolved_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?)
-  `).run(id, title, description ?? "", "open", priority ?? "P3",
-         assigneeId ?? null, assigneeName ?? null, requester ?? null, now, now, null);
+  // Queue for Enterprise in the same transaction, so a saved ticket is never
+  // left unforwarded
+  db.transaction(() => {
+    db.prepare(`
+      INSERT INTO tickets
+        (id,title,description,status,priority,assignee_id,assignee_name,requester,created_at,updated_at,resolved_at)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?)
+    `).run(id, title, description ?? "", "open", priority ?? "P3",
+           assigneeId ?? null, assigneeName ?? null, requester ?? null, now, now, null);
+    if (BRIDGE_ENABLED) enqueueTicket(id);
+  })();
   const created = db.prepare("SELECT * FROM tickets WHERE id = ?").get(id) as Ticket;
   res.status(201).json(toTicket(created));
+  if (BRIDGE_ENABLED) kickBridge();
 });
 
 // PATCH /tickets/:id

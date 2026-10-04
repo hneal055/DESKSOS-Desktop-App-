@@ -254,6 +254,45 @@ Start-ScheduledTask "DeskSOS Daily Backup";    Get-Content logs\backup.log -Tail
 Start-ScheduledTask "DeskSOS Health Monitor";  Get-Content logs\monitor.log -Tail 5
 ```
 
+### 3.8 Optional: forward tickets to DeskSOS Enterprise
+
+The backend can forward every **newly created** ticket to the DeskSOS Enterprise
+incident dashboard. Existing tickets are not sent. It's off until both settings
+below are present. Add them to `backend/.env`, or to `env_production` if only
+production should forward:
+
+```ini
+ENTERPRISE_INGEST_URL=http://localhost:5100/api/ingest/incidents
+ENTERPRISE_INGEST_KEY=<same value as INGEST_API_KEY in the Enterprise backend/server/.env>
+# Optional; give dev and production different values so their tickets stay distinct
+ENTERPRISE_SOURCE=desksos-desktop
+```
+
+Then restart the backend. The log shows
+`[enterprise-bridge] Forwarding new tickets to …` when it's active.
+
+How delivery works:
+
+- A new ticket is queued in the `enterprise_outbox` table in the same
+  transaction that saves it, then sent within seconds.
+- If Enterprise is down, rejects the key (401), or is unconfigured (503), the
+  ticket stays queued and is retried after 30 s, 1 m, 2 m … up to every hour.
+  The queue survives restarts.
+- If Enterprise rejects the ticket itself (400), it's marked `failed` and not
+  retried.
+- Priorities map to severities: P1 → CRITICAL, P2 → HIGH, P3 → MEDIUM.
+- Status changes made later in Desktop are not forwarded.
+
+Check the queue:
+
+```powershell
+cd backend
+node -e "const db=require('better-sqlite3')('data/desksos.db');console.table(db.prepare('SELECT ticket_id,status,attempts,next_attempt_at,last_error FROM enterprise_outbox ORDER BY created_at DESC LIMIT 20').all())"
+```
+
+Use `data/desksos-prod.db` for production. To retry a `failed` ticket after
+fixing the cause, set its row back to `status='pending'`.
+
 ---
 
 ## 4. Automated startup sequence
@@ -433,3 +472,6 @@ Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like "*mkcert*" | 
 | Dashboard diagnostics empty | Opened in a browser, not the desktop app | Use the DeskSOS desktop window |
 | Nothing started after a reboot | Startup task failed | `Get-Content backend\logs\startup.log -Tail 30`; `Get-ScheduledTaskInfo "DeskSOS Backend Startup"` |
 | Tasks stopped running after a PowerShell update | Task points at an old pwsh path | Run `register-tasks.ps1` again (elevated) |
+| Tickets don't appear in Enterprise | Bridge not configured, or Enterprise unreachable | Look for `[enterprise-bridge]` in the backend log; check the outbox (3.8) |
+| Bridge log: `HTTP 401` | `ENTERPRISE_INGEST_KEY` doesn't match Enterprise's `INGEST_API_KEY` | Fix the key and restart; queued tickets are retried automatically |
+| Bridge log: `HTTP 503 … INGEST_API_KEY is not configured` | Ingest is turned off on the Enterprise side | Set `INGEST_API_KEY` in Enterprise `backend/server/.env` and restart it |
