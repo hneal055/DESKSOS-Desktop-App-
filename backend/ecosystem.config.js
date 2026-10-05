@@ -49,12 +49,16 @@ module.exports = {
       },
 
       // ── Environment: production ──────────────────────────────────────────
-      // Secrets (JWT_SECRET, TLS_CERT_PATH, TLS_KEY_PATH) are NOT stored here.
-      // Inject them via: pm2 start ecosystem.config.js --env production
-      // and set secrets in the host environment or a .env file excluded from git.
+      // Production shares this PC with development, so it gets its own port
+      // and database; dev (npm run dev) keeps 5000/HTTP and data/desksos.db.
+      // TLS paths live here rather than in .env so dev stays on plain HTTP.
+      // JWT_SECRET still comes from backend/.env (excluded from git).
       env_production: {
         NODE_ENV: "production",
-        PORT: "5000",
+        PORT: "5443",
+        TLS_CERT_PATH: "./certs/server.crt",
+        TLS_KEY_PATH: "./certs/server.key",
+        DATABASE_PATH: "./data/desksos-prod.db",
       },
     },
   ],

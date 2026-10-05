@@ -21,7 +21,10 @@
 #>
 param(
     [string]$OutDir    = "$PSScriptRoot\..\certs",
-    [int]   $ValidDays = 825   # Apple / Chrome max accepted validity
+    [int]   $ValidDays = 825,  # Apple / Chrome max accepted validity
+    # Host names / IPs the cert covers. Add the server's machine name when other
+    # PCs connect, e.g. -Names localhost,127.0.0.1,desksos-server
+    [string[]]$Names   = @("localhost", "127.0.0.1")
 )
 
 $OutDir = (New-Item -ItemType Directory -Force $OutDir).FullName
@@ -40,9 +43,9 @@ if ($mkcert) {
         exit 1
     }
 
-    # Generate cert + key for localhost / 127.0.0.1
+    # Generate cert + key for the requested names
     Push-Location $OutDir
-    & mkcert -cert-file server.crt -key-file server.key localhost 127.0.0.1
+    & mkcert -cert-file server.crt -key-file server.key @Names
     if ($LASTEXITCODE -ne 0) {
         Pop-Location
         Write-Error "mkcert failed to generate certificate."
@@ -76,10 +79,10 @@ Write-Warning ""
 $certPath = Join-Path $OutDir "server.crt"
 $keyPath  = Join-Path $OutDir "server.key"
 
-Write-Host "Generating self-signed cert for localhost (valid $ValidDays days)..."
+Write-Host "Generating self-signed cert for $($Names -join ', ') (valid $ValidDays days)..."
 
 $cert = New-SelfSignedCertificate `
-    -DnsName "localhost","127.0.0.1" `
+    -DnsName $Names `
     -CertStoreLocation "Cert:\CurrentUser\My" `
     -NotAfter (Get-Date).AddDays($ValidDays) `
     -KeyAlgorithm RSA `

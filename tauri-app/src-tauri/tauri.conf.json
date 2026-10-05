@@ -23,7 +23,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https://ipc.localhost https://desksos-desktop-app-production.up.railway.app wss://desksos-desktop-app-production.up.railway.app http://localhost:5000 https://localhost:5000 ws://localhost:5000 wss://localhost:5000; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost https://ipc.localhost https://desksos-desktop-app-production.up.railway.app wss://desksos-desktop-app-production.up.railway.app https://FORD-DC01:5443 wss://FORD-DC01:5443 http://localhost:5000 https://localhost:5000 ws://localhost:5000 wss://localhost:5000 http://localhost:5001 ws://localhost:5001 http://localhost:1420 ws://localhost:1420; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:"
     }
   },
   "bundle": {

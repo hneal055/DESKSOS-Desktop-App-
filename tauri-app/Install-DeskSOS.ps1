@@ -263,12 +263,20 @@ function Invoke-BackendStart {
         }
     }
 
-    Write-Step "Starting backend API in background..."
     $backendDir = $BACKEND_DIR
+    # Always compile: an existing dist\server.js may be older than the source
+    Write-Step "Compiling backend (npm run build)..."
+    Push-Location $backendDir
+    npm run build --silent
+    $buildExit = $LASTEXITCODE
+    Pop-Location
+    if ($buildExit -ne 0) { Write-Fail "Backend build failed."; Pause-Screen; return }
+
+    Write-Step "Starting backend API in background..."
     $job = Start-Job -Name "Backend" -ScriptBlock {
         param($dir)
         Set-Location $dir
-        node server.js 2>&1
+        node dist/server.js 2>&1
     } -ArgumentList $backendDir
 
     Start-Sleep -Seconds 3

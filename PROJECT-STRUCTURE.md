@@ -70,7 +70,8 @@ npm run tauri:build        # Build MSI/EXE installers
 ### Backend API
 ```powershell
 cd backend                 # MUST be backend/ dir for .env to load
-node server.js             # Starts on http://0.0.0.0:5000
+npm run dev                # tsx watch src/server.ts on http://0.0.0.0:5000
+# Production: npm run build && npm start   (runs dist/server.js)
 ```
 
 ### Mobile App
@@ -173,18 +174,19 @@ DESKSOS/
 │   └── package.json
 │
 ├── backend/                      # Node.js + Express API (port 5000)
-│   ├── routes/
-│   │   ├── auth.js               # POST /auth/login, /auth/register, /auth/refresh
-│   │   ├── dashboard.js          # GET /dashboard/queue, /dashboard/team
-│   │   ├── tickets.js            # GET /tickets, /tickets/:id  PATCH /tickets/:id
-│   │   ├── chat.js               # GET /chat/channels, /chat/:id/messages
-│   │   ├── assets.js             # GET /assets/:code
-│   │   └── network.js            # GET /network/info
-│   ├── data/
-│   │   └── store.js              # In-memory seed (22 tickets, users, channels, assets)
-│   ├── middleware/
-│   │   └── auth.js               # JWT verification middleware
-│   ├── server.js                 # Express + Socket.IO entry (dotenv via __dirname)
+│   ├── src/                      # TypeScript source (compiled to dist/ by `npm run build`)
+│   │   ├── routes/
+│   │   │   ├── auth.ts           # POST /auth/login, /auth/register, /auth/refresh
+│   │   │   ├── dashboard.ts      # GET /dashboard/queue, /dashboard/team
+│   │   │   ├── tickets.ts        # GET /tickets, /tickets/:id  PATCH /tickets/:id
+│   │   │   ├── chat.ts           # GET /chat/channels, /chat/:id/messages
+│   │   │   ├── assets.ts         # GET /assets/:code
+│   │   │   └── network.ts        # GET /network/info
+│   │   ├── middleware/           # auth, requireRole, validate, errorHandler
+│   │   ├── config.ts             # Env config incl. CORS_ORIGINS allow-list
+│   │   ├── db.ts                 # SQLite (data/desksos.db)
+│   │   └── server.ts             # Express + Socket.IO entry
+│   ├── dist/server.js            # Compiled entry used by `npm start` / Railway
 │   └── .env                      # PORT=5000, JWT_SECRET
 │
 ├── tauri-app/                    # Main desktop application

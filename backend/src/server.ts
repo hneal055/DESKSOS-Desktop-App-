@@ -1,3 +1,5 @@
+import { SENTRY_ENABLED } from "./instrument.js";
+import * as Sentry from "@sentry/node";
 import "./config.js";
 import { JWT_SECRET, PORT, CORS_ORIGINS } from "./config.js";
 import express from "express";
@@ -10,10 +12,11 @@ import cors, { CorsOptions } from "cors";
 import helmet from "helmet";
 import { rateLimit } from "express-rate-limit";
 import morgan from "morgan";
-import rfs from "rotating-file-stream";
+import { createStream } from "rotating-file-stream";
 import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
+import db from "./db.js";
 
 import authRoute      from "./routes/auth.js";
 import dashboardRoute from "./routes/dashboard.js";
@@ -65,7 +68,7 @@ if (process.env.NODE_ENV === "production") {
   // Rotate access log daily, keep 14 days, max 10 MB per file
   const logDir = path.join(__dirname, "..", "logs");
   fs.mkdirSync(logDir, { recursive: true });
-  const accessLog = rfs.createStream("access.log", {
+  const accessLog = createStream("access.log", {
     interval: "1d",
     maxFiles: 14,
     maxSize: "10M",
@@ -100,6 +103,20 @@ const authLimiter = rateLimit({
   message: { error: "Too many auth attempts, please try again later." },
 });
 
+// Health check for uptime monitors. Registered before the rate limiter so
+// frequent probes are never throttled; queries SQLite so a locked or missing
+// database reports 503 instead of a false "ok".
+app.get("/health", (_req, res) => {
+  try {
+    // Read a real table: "SELECT 1" succeeds without touching the database file
+    db.prepare("SELECT COUNT(*) AS n FROM users").get();
+    res.json({ status: "ok", db: "ok", uptime: Math.round(process.uptime()) });
+  } catch (err) {
+    console.error(`[health] Database check failed: ${(err as Error).message}`);
+    res.status(503).json({ status: "error", db: "unavailable" });
+  }
+});
+
 app.use(globalLimiter);
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -111,10 +128,12 @@ app.use("/chat",      chatRoute);
 app.use("/assets",    assetsRoute);
 app.use("/network",   networkRoute);
 app.use("/tickets",   ticketsRoute);
-app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
 // 404 for any unknown route (before error handler)
 app.use((_req, res) => res.status(404).json({ error: "Not found" }));
+
+// Report unhandled route errors to Sentry (when configured) before responding
+if (SENTRY_ENABLED) Sentry.setupExpressErrorHandler(app);
 
 // Global error handler — must have 4 params to be recognised by Express
 app.use(errorHandler);
@@ -178,7 +197,7 @@ io.on("connection", (socket) => {
 
 if (require.main === module) {
   server.listen(Number(PORT), "0.0.0.0", () => {
-    console.log(`DeskSOS API running on http://0.0.0.0:${PORT}`);
+    console.log(`DeskSOS API running on ${tlsCert && tlsKey ? "https" : "http"}://0.0.0.0:${PORT}`);
     console.log(`  CORS origins: ${CORS_ORIGINS.join(", ")}`);
   });
 
