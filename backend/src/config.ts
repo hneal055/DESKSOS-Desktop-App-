@@ -28,3 +28,13 @@ const rawOrigins = process.env.CORS_ORIGINS
   ?? "http://localhost:1420,tauri://localhost,https://tauri.localhost,http://tauri.localhost";
 
 export const CORS_ORIGINS: string[] = rawOrigins.split(",").map((o) => o.trim()).filter(Boolean);
+
+// DeskSOS Enterprise bridge: forward newly created tickets to the Enterprise
+// ingest API. Disabled unless both URL and key are set.
+//   ENTERPRISE_INGEST_URL=http://localhost:5100/api/ingest/incidents
+//   ENTERPRISE_INGEST_KEY=<same value as INGEST_API_KEY on the Enterprise server>
+//   ENTERPRISE_SOURCE=desksos-desktop   (optional; use distinct values per instance)
+export const ENTERPRISE_INGEST_URL = process.env.ENTERPRISE_INGEST_URL?.trim() || "";
+export const ENTERPRISE_INGEST_KEY = process.env.ENTERPRISE_INGEST_KEY?.trim() || "";
+export const ENTERPRISE_SOURCE     = process.env.ENTERPRISE_SOURCE?.trim() || "desksos-desktop";
+export const BRIDGE_ENABLED        = Boolean(ENTERPRISE_INGEST_URL && ENTERPRISE_INGEST_KEY);

@@ -28,6 +28,14 @@ const PRIORITY_COLORS: Record<Priority, string> = {
   Critical: "bg-red-700 text-red-200",
 };
 
+// Backend priority codes, one per level so Low and Medium stay distinct
+export const PRIORITY_CODE: Record<Priority, "P1" | "P2" | "P3" | "P4"> = {
+  Critical: "P1",
+  High: "P2",
+  Medium: "P3",
+  Low: "P4",
+};
+
 export default function TicketBuilder() {
   const [diagData, setDiagData] = useState<DiagData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -187,11 +195,10 @@ export default function TicketBuilder() {
     setSubmitError(null);
     setSubmitted(null);
     try {
-      const p = priority === "Critical" ? "P1" : priority === "High" ? "P2" : "P3";
       const ticket = await api.createTicket({
         title: `[${diagData.name}] ${issueDesc.slice(0, 100) || "Support Request"}`,
         description: buildTicketText(),
-        priority: p,
+        priority: PRIORITY_CODE[priority],
         requester: diagData.user,
       });
       setSubmitted({ id: ticket.id });

@@ -91,7 +91,7 @@ export const api = {
   createTicket: (data: {
     title: string;
     description?: string;
-    priority?: "P1" | "P2" | "P3";
+    priority?: "P1" | "P2" | "P3" | "P4";
     requester?: string;
   }) =>
     request<Ticket>("/tickets", {

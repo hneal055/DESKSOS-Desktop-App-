@@ -55,6 +55,16 @@ describe("GET /tickets/:id", () => {
 });
 
 describe("POST /tickets", () => {
+  it("accepts P4 (Low) and sorts it after P3", async () => {
+    const res = await request(app).post("/tickets").set(auth()).send({ title: "Low priority ticket", priority: "P4" });
+    expect(res.statusCode).toBe(201);
+    expect(res.body.priority).toBe("P4");
+
+    const list = await request(app).get("/tickets?status=open").set(auth());
+    const priorities = list.body.map(t => t.priority);
+    expect(priorities.lastIndexOf("P3")).toBeLessThan(priorities.indexOf("P4"));
+  });
+
   it("creates a new ticket and persists it", async () => {
     const res = await request(app).post("/tickets").set(auth()).send({
       title: "Test ticket from Jest",

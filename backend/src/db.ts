@@ -2,7 +2,7 @@ import crypto from "crypto";
 import path from "path";
 import Database, { Database as DB } from "better-sqlite3";
 import bcrypt from "bcryptjs";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID as uuidv4 } from "crypto";
 
 const DB_PATH: string =
   process.env.DATABASE_PATH ?? path.join(__dirname, "..", "data", "desksos.db");
@@ -69,6 +69,20 @@ db.exec(`
     status         TEXT DEFAULT 'offline',
     active_tickets INTEGER DEFAULT 0
   );
+  -- Tickets waiting to be forwarded to DeskSOS Enterprise (see enterpriseBridge.ts).
+  -- status: pending (will be retried) | sent | failed (permanent, needs attention)
+  CREATE TABLE IF NOT EXISTS enterprise_outbox (
+    ticket_id       TEXT PRIMARY KEY REFERENCES tickets(id) ON DELETE CASCADE,
+    status          TEXT NOT NULL DEFAULT 'pending',
+    attempts        INTEGER NOT NULL DEFAULT 0,
+    next_attempt_at TEXT NOT NULL,
+    last_error      TEXT,
+    enterprise_id   TEXT,
+    created_at      TEXT NOT NULL,
+    sent_at         TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_enterprise_outbox_due
+    ON enterprise_outbox (status, next_attempt_at);
 `);
 
 // ---- Seed (runs once on first launch) ----------------------------------------

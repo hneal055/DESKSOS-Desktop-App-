@@ -37,10 +37,18 @@ if (-not $isAdmin) {
     exit 1
 }
 $root = (Resolve-Path "$PSScriptRoot\..").Path
-# Prefer the stable App Execution Alias: the Store install path embeds the
-# version number and changes on every PowerShell update.
+# Prefer the MSI install: its path is stable across updates AND it can run in
+# S4U tasks. The Store's App Execution Alias (WindowsApps\pwsh.exe) can't be
+# launched when nobody is signed in, so tasks using it fail with 0x80070005.
+$msi   = Join-Path $env:ProgramFiles "PowerShell\7\pwsh.exe"
 $alias = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps\pwsh.exe"
-$pwsh  = if (Test-Path $alias) { $alias } else { (Get-Command pwsh).Source }
+$pwsh  = if (Test-Path $msi) { $msi } elseif (Test-Path $alias) { $alias } else { (Get-Command pwsh).Source }
+if ($pwsh -eq $alias) {
+    Write-Warning "Only the Microsoft Store PowerShell was found. Scheduled tasks can't start it while nobody is signed in (error 0x80070005)."
+    # winget's default for this package is the MSIX (Store-style) build, so ask for the MSI
+    Write-Warning "Install the MSI version, then run this script again:  winget install --id Microsoft.PowerShell --source winget --installer-type wix"
+}
+Write-Host "Tasks will use: $pwsh"
 # RunLevel Highest: PM2's daemon is only reachable from the same elevation
 # level, and setup/maintenance happen in elevated windows, so tasks match that.
 $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType S4U -RunLevel Highest

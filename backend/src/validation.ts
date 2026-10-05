@@ -14,7 +14,7 @@ export const RegisterSchema = z.object({
 
 // Tickets
 const VALID_STATUSES   = ["open", "in-progress", "resolved"] as const;
-const VALID_PRIORITIES = ["P1", "P2", "P3"] as const;
+const VALID_PRIORITIES = ["P1", "P2", "P3", "P4"] as const;
 
 export const CreateTicketSchema = z.object({
   title:        z.string().min(1, "title required").max(200),
