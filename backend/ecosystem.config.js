@@ -16,6 +16,8 @@
  *   pm2 stop   desksos-backend
  */
 
+const path = require("path");
+
 module.exports = {
   apps: [
     {
@@ -59,6 +61,16 @@ module.exports = {
         TLS_CERT_PATH: "./certs/server.crt",
         TLS_KEY_PATH: "./certs/server.key",
         DATABASE_PATH: "./data/desksos-prod.db",
+
+        // Forward new tickets to DeskSOS Enterprise production (same PC).
+        // The key is a secret: it lives in backend/.env.production as
+        // ENTERPRISE_INGEST_KEY (set it with the Enterprise repo's
+        // rotate-ingest-key.ps1 -Production). Without it the bridge stays off.
+        ENTERPRISE_INGEST_URL: process.env.DESKSOS_ENTERPRISE_URL || "https://localhost:5543/api/ingest/incidents",
+        ENTERPRISE_SOURCE: "desksos-desktop-prod",
+        // Node doesn't use the Windows certificate store, so trust the mkcert
+        // CA that issued Enterprise's certificate. Read once at startup.
+        NODE_EXTRA_CA_CERTS: process.env.DESKSOS_CA_CERT || path.join(process.env.LOCALAPPDATA || "", "mkcert", "rootCA.pem"),
       },
     },
   ],

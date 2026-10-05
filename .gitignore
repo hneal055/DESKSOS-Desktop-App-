@@ -30,6 +30,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Temporary files
 *.tmp

@@ -294,6 +294,28 @@ node -e "const db=require('better-sqlite3')('data/desksos.db');console.table(db.
 Use `data/desksos-prod.db` for production. To retry a `failed` ticket after
 fixing the cause, set its row back to `status='pending'`.
 
+**Production → Enterprise production.** `ecosystem.config.js` already points
+production at `https://localhost:5543/api/ingest/incidents` (Enterprise
+production on the same PC) with source `desksos-desktop-prod`, and sets
+`NODE_EXTRA_CA_CERTS` to mkcert's root CA (`%LOCALAPPDATA%\mkcert\rootCA.pem`).
+That setting is required: Node doesn't use the Windows certificate store, so
+without it every request fails with `UNABLE_TO_VERIFY_LEAF_SIGNATURE`.
+
+Only the key is missing, and it's a secret, so it lives in
+`backend/.env.production` (ignored by git, loaded only in production, and
+overriding inherited values). Pair it with Enterprise production's key from
+the Enterprise repo, then restart both:
+
+```powershell
+cd C:\Projects\DESKSOS
+.\rotate-ingest-key.ps1 -Production
+.\start-production.ps1 -SkipBuild
+C:\Projects\DESKSOS-Desktop\backend\scripts\start-production.ps1 -SkipBuild
+```
+
+The production log should then show
+`[enterprise-bridge] Forwarding new tickets to https://localhost:5543/...`.
+
 ---
 
 ## 4. Automated startup sequence
