@@ -112,6 +112,9 @@ export async function processOutbox(opts: BridgeOptions): Promise<OutboxRunSumma
           headers: { "Content-Type": "application/json", "X-API-Key": opts.apiKey },
           body: JSON.stringify(buildPayload(row, opts.source)),
           signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
+          // fetch keeps custom headers like X-API-Key on cross-origin 307/308
+          // redirects, so following one could hand the key to another host
+          redirect: "error",
         });
 
         if (res.ok) {
@@ -172,9 +175,32 @@ function runSafely(): void {
   );
 }
 
+// The API key travels in a header, so it must not cross the network in clear
+// text: require HTTPS unless the URL points at this machine. Returns an error
+// message, or null when the URL is acceptable.
+export function checkIngestUrl(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return `ENTERPRISE_INGEST_URL is not a valid URL: ${raw}`;
+  }
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  const loopback = host === "localhost" || host === "::1" || /^127\.\d+\.\d+\.\d+$/.test(host);
+  if (url.protocol === "https:" || (url.protocol === "http:" && loopback)) return null;
+  return `ENTERPRISE_INGEST_URL must use https:// (plain http:// is only allowed for localhost): ${raw}`;
+}
+
 // Starts the background worker. No-op unless the bridge is configured.
 export function startBridge(): boolean {
   if (!BRIDGE_ENABLED || timer) return Boolean(timer);
+  // A bad URL disables sending instead of crashing the backend. New tickets
+  // are still queued, and are sent once the URL is fixed and the backend restarts.
+  const urlError = checkIngestUrl(ENTERPRISE_INGEST_URL);
+  if (urlError) {
+    console.error(`[enterprise-bridge] Disabled: ${urlError}`);
+    return false;
+  }
   activeOptions = { url: ENTERPRISE_INGEST_URL, apiKey: ENTERPRISE_INGEST_KEY, source: ENTERPRISE_SOURCE };
   timer = setInterval(runSafely, POLL_INTERVAL_MS);
   timer.unref();

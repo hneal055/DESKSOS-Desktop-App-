@@ -10,6 +10,7 @@ const {
   buildPayload,
   backoffMs,
   isRetryableStatus,
+  checkIngestUrl,
   processOutbox,
 } = require("../src/enterpriseBridge");
 
@@ -99,6 +100,26 @@ describe("retry policy", () => {
   });
 });
 
+describe("ingest URL safety", () => {
+  it("accepts https anywhere and plain http only for loopback", () => {
+    [
+      "https://enterprise.example.com/api/ingest/incidents",
+      "https://FORD-DC01:5543/api/ingest/incidents",
+      "http://localhost:5100/api/ingest/incidents",
+      "http://127.0.0.1:5100/api/ingest/incidents",
+      "http://[::1]:5100/api/ingest/incidents",
+    ].forEach((u) => expect(checkIngestUrl(u)).toBeNull());
+  });
+
+  it("rejects plain http to another host, other schemes and invalid URLs", () => {
+    expect(checkIngestUrl("http://FORD-DC01:5100/api/ingest/incidents")).toMatch(/must use https/);
+    expect(checkIngestUrl("http://192.168.1.10/api/ingest/incidents")).toMatch(/must use https/);
+    expect(checkIngestUrl("http://localhost.evil.com/api")).toMatch(/must use https/);
+    expect(checkIngestUrl("ftp://localhost/x")).toMatch(/must use https/);
+    expect(checkIngestUrl("not a url")).toMatch(/not a valid URL/);
+  });
+});
+
 describe("POST /tickets with the bridge enabled", () => {
   it("queues the new ticket in the outbox", async () => {
     const t = await createTicket();
@@ -123,6 +144,7 @@ describe("processOutbox", () => {
     const [url, init] = fetchImpl.mock.calls[0];
     expect(url).toBe("http://enterprise.test/api/ingest/incidents");
     expect(init.headers["X-API-Key"]).toBe("test-ingest-key");
+    expect(init.redirect).toBe("error");
     expect(JSON.parse(init.body)).toMatchObject({
       source: "desksos-desktop-test", externalId: t.id, severity: "HIGH", requester: "Pat",
     });
