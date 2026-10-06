@@ -25,7 +25,11 @@
 param(
     [string]$Url = ($env:DESKSOS_HEALTH_URL ?? "http://localhost:5000/health"),
     [int]$TimeoutSec = 15,
-    [int]$CertWarnDays = 14
+    [int]$CertWarnDays = 14,
+    # Enterprise bridge queue (plan task 3.6). /health/bridge only answers local
+    # requests, so it's always read through localhost on the same port.
+    [string]$BridgeUrl,
+    [int]$BridgeStuckMinutes = 60
 )
 
 $root      = (Resolve-Path "$PSScriptRoot\..").Path
@@ -103,6 +107,47 @@ if ($isUp -and $uri.Scheme -eq "https" -and $state.certWarned -ne (Get-Date -For
         }
     } catch {
         Write-Log "Certificate check failed: $($_.Exception.Message)"
+    }
+}
+
+# ── Enterprise bridge queue (task 3.6) ─────────────────────────────────────────
+# Alerts once when the oldest undelivered ticket passes $BridgeStuckMinutes, once
+# when it clears, and once for each new ticket Enterprise rejected outright.
+if ($isUp) {
+    if (-not $BridgeUrl) { $BridgeUrl = "{0}://localhost:{1}/health/bridge" -f $uri.Scheme, $uri.Port }
+    try {
+        $b = Invoke-RestMethod $BridgeUrl -TimeoutSec $TimeoutSec -ErrorAction Stop
+        if ($b.enabled) {
+            $stuck = $b.pending -gt 0 -and $b.oldestPendingMinutes -ge $BridgeStuckMinutes
+            $wasStuck = [bool]$state.bridgeStuck
+            $queue = "$($b.pending) ticket(s) waiting; the oldest has waited $($b.oldestPendingMinutes) minute(s)."
+            if ($stuck -and -not $wasStuck) {
+                if (Send-Alert "Enterprise bridge stuck" "Tickets aren't reaching DeskSOS Enterprise. $queue`n`nOn the server: pm2 logs desksos-backend (look for [enterprise-bridge]); details for admins: GET /dashboard/bridge. Common causes: Enterprise is down, or the ingest key doesn't match (rotate-ingest-key.ps1 -Production).") {
+                    $state.bridgeStuck = $true
+                }
+            } elseif (-not $stuck -and $wasStuck) {
+                if (Send-Alert "Enterprise bridge recovered" "Queued tickets are reaching DeskSOS Enterprise again. $($b.pending) still pending.") {
+                    $state.bridgeStuck = $false
+                }
+            } elseif ($stuck) {
+                Write-Log "Bridge still stuck: $queue"
+            }
+            $seen = [int]($state.bridgeFailedSeen ?? 0)
+            if ($b.failed -gt $seen) {
+                $new = $b.failed - $seen
+                if (Send-Alert "Enterprise rejected $new ticket(s)" "DeskSOS Enterprise refused $new ticket(s) and they won't be retried ($($b.failed) in total). Admins can see which and why at GET /dashboard/bridge.") {
+                    $state.bridgeFailedSeen = $b.failed
+                }
+            } elseif ($b.failed -lt $seen) {
+                $state.bridgeFailedSeen = $b.failed
+            }
+        }
+    } catch {
+        # Older backends don't have /health/bridge; note it once a day, not every run
+        if ($state.bridgeCheckWarned -ne (Get-Date -Format "yyyy-MM-dd")) {
+            Write-Log "Bridge status unavailable at ${BridgeUrl}: $($_.Exception.Message)"
+            $state.bridgeCheckWarned = Get-Date -Format "yyyy-MM-dd"
+        }
     }
 }
 

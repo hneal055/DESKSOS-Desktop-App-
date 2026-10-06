@@ -3,8 +3,14 @@ import auth from "../middleware/auth.js";
 import { requireRole } from "../middleware/requireRole.js";
 import db from "../db.js";
 import { TeamMember } from "../types/index.js";
+import { outboxStatus, outboxProblems } from "../enterpriseBridge.js";
 
 const router = Router();
+
+// Enterprise bridge outbox: counts plus the tickets not yet delivered (admins)
+router.get("/bridge", auth, requireRole("admin"), (_req: Request, res: Response): void => {
+  res.json({ ...outboxStatus(), problems: outboxProblems() });
+});
 
 router.get("/queue", auth, (_req: Request, res: Response): void => {
   const open       = (db.prepare("SELECT COUNT(*) as c FROM tickets WHERE status = ?").get("open")        as { c: number }).c;
