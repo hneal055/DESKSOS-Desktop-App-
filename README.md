@@ -71,7 +71,7 @@ npm ci
 copy .env.example .env        # then set JWT_SECRET (see the comment in the file)
 npm run dev                   # http://localhost:5000
 
-# Desktop app (new terminal)
+# Desktop app (new terminal, from the repository root)
 cd tauri-app
 npm ci
 npm run tauri:dev
@@ -122,9 +122,10 @@ Details: OPERATIONS.md §3.8.
 ## Testing
 
 ```powershell
-cd backend;   npm test          # Jest + Supertest (in-memory database)
-cd tauri-app; npm test          # Vitest + React Testing Library
-cd tauri-app; npm run test:e2e  # Playwright (starts a test backend on :5001)
+# From the repository root
+npm --prefix backend test              # Jest + Supertest (in-memory database)
+npm --prefix tauri-app test            # Vitest + React Testing Library
+npm --prefix tauri-app run test:e2e    # Playwright (starts a test backend on :5001)
 ```
 
 CI (`.github/workflows/ci.yml`) runs all three on every push and pull request: backend, then desktop, then e2e.
