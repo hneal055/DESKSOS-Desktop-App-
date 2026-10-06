@@ -134,6 +134,14 @@ pm2 set pm2-logrotate:retain 14
 pm2 set pm2-logrotate:compress true
 ```
 
+Keep the server awake. Windows 11 sleeps after a few idle minutes, which takes
+the backend off the network (FORD-DC01 slept overnight on 2026-10-06):
+
+```powershell
+powercfg /change standby-timeout-ac 0
+powercfg /change hibernate-timeout-ac 0
+```
+
 ### 3.2 Remove the stale `JWT_SECRET` user variable
 
 A 28-character `JWT_SECRET` set as a Windows user environment variable will
@@ -292,6 +300,8 @@ How delivery works:
   The queue survives restarts.
 - If Enterprise rejects the ticket itself (400), it's marked `failed` and not
   retried.
+- Only tickets created **while the bridge is configured** are queued. Tickets
+  created before the key was set are never forwarded; create them again.
 - Priorities map to severities: P1 (Critical) → CRITICAL, P2 (High) → HIGH,
   P3 (Medium) → MEDIUM, P4 (Low) → LOW.
 - Status changes made later in Desktop are not forwarded.
@@ -509,5 +519,7 @@ Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like "*mkcert*" | 
 | Nothing started after a reboot | Startup task failed | `Get-Content backend\logs\startup.log -Tail 30`; `Get-ScheduledTaskInfo "DeskSOS Backend Startup"` |
 | Tasks stopped running after a PowerShell update | Task points at an old pwsh path | Run `register-tasks.ps1` again (elevated) |
 | Tickets don't appear in Enterprise | Bridge not configured, or Enterprise unreachable | Look for `[enterprise-bridge]` in the backend log; check the outbox (3.8) |
+| Tickets don't appear in Enterprise **production** | The app in use is a dev build (`target\debug\desksos.exe`, or `npm run tauri dev`), which talks to `localhost:5000` and forwards to Enterprise **dev** | Use the release build or installed app, which talks to `FORD-DC01:5443`. Dev tickets wait in the dev outbox until Enterprise dev runs |
+| Production sign-in rejected with credentials that work in dev | Production has its own accounts and passwords (`desksos-prod.db`) | Use the production password; if it's lost, `node scripts/reset-password.js --prod <email>` (4.3) |
 | Bridge log: `HTTP 401` | `ENTERPRISE_INGEST_KEY` doesn't match Enterprise's `INGEST_API_KEY` | Fix the key and restart; queued tickets are retried automatically |
 | Bridge log: `HTTP 503 … INGEST_API_KEY is not configured` | Ingest is turned off on the Enterprise side | Set `INGEST_API_KEY` in Enterprise `backend/server/.env` and restart it |
