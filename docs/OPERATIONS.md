@@ -306,15 +306,31 @@ How delivery works:
   P3 (Medium) → MEDIUM, P4 (Low) → LOW.
 - Status changes made later in Desktop are not forwarded.
 
-Check the queue:
+**Check the queue:**
 
-```powershell
-cd backend
-node -e "const db=require('better-sqlite3')('data/desksos.db');console.table(db.prepare('SELECT ticket_id,status,attempts,next_attempt_at,last_error FROM enterprise_outbox ORDER BY created_at DESC LIMIT 20').all())"
-```
+- **Quick status, from the server itself.** No sign-in is needed, but it only
+  answers requests from this PC: other PCs get 404. It returns counts and
+  ages only:
+  ```powershell
+  Invoke-RestMethod https://localhost:5443/health/bridge
+  # enabled, pending, failed, sent, oldestPendingAt, oldestPendingMinutes
+  ```
+- **Details for admins.** This also lists every undelivered ticket with its
+  last error:
+  `GET /dashboard/bridge`, with an admin token.
+- **Raw rows:**
+  ```powershell
+  cd backend
+  node -e "const db=require('better-sqlite3')('data/desksos.db');console.table(db.prepare('SELECT ticket_id,status,attempts,next_attempt_at,last_error FROM enterprise_outbox ORDER BY created_at DESC LIMIT 20').all())"
+  ```
+  Use `data/desksos-prod.db` for production. To retry a `failed` ticket after
+  fixing the cause, set its row back to `status='pending'`.
 
-Use `data/desksos-prod.db` for production. To retry a `failed` ticket after
-fixing the cause, set its row back to `status='pending'`.
+**Alerts.** The DeskSOS Health Monitor task (`monitor-health.ps1`) reads
+`/health/bridge` through `localhost` on every run. It alerts once when the
+oldest undelivered ticket has waited **60 minutes** (`-BridgeStuckMinutes`),
+once when the queue clears, and once each time Enterprise **rejects** tickets.
+Alerts go to the same channels as the up/down alerts (§3.7).
 
 **Production → Enterprise production.** `ecosystem.config.js` already points
 production at `https://localhost:5543/api/ingest/incidents` (Enterprise
@@ -518,7 +534,7 @@ Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -like "*mkcert*" | 
 | Dashboard diagnostics empty | Opened in a browser, not the desktop app | Use the DeskSOS desktop window |
 | Nothing started after a reboot | Startup task failed | `Get-Content backend\logs\startup.log -Tail 30`; `Get-ScheduledTaskInfo "DeskSOS Backend Startup"` |
 | Tasks stopped running after a PowerShell update | Task points at an old pwsh path | Run `register-tasks.ps1` again (elevated) |
-| Tickets don't appear in Enterprise | Bridge not configured, or Enterprise unreachable | Look for `[enterprise-bridge]` in the backend log; check the outbox (3.8) |
+| Tickets don't appear in Enterprise | Bridge not configured, or Enterprise unreachable | `Invoke-RestMethod https://localhost:5443/health/bridge` on the server; look for `[enterprise-bridge]` in the backend log; check the outbox (3.8) |
 | Tickets don't appear in Enterprise **production** | The app in use is a dev build (`target\debug\desksos.exe`, or `npm run tauri dev`), which talks to `localhost:5000` and forwards to Enterprise **dev** | Use the release build or installed app, which talks to `FORD-DC01:5443`. Dev tickets wait in the dev outbox until Enterprise dev runs |
 | Production sign-in rejected with credentials that work in dev | Production has its own accounts and passwords (`desksos-prod.db`) | Use the production password; if it's lost, `node scripts/reset-password.js --prod <email>` (4.3) |
 | Bridge log: `HTTP 401` | `ENTERPRISE_INGEST_KEY` doesn't match Enterprise's `INGEST_API_KEY` | Fix the key and restart; queued tickets are retried automatically |

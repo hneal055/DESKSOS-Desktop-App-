@@ -219,6 +219,60 @@ export function stopBridge(): void {
   activeOptions = null;
 }
 
+// ── Outbox visibility (readiness plan task 3.6) ─────────────────────────────
+
+export interface OutboxStatus {
+  enabled: boolean;
+  pending: number;
+  failed: number;
+  sent: number;
+  oldestPendingAt: string | null;
+  oldestPendingMinutes: number | null;
+}
+
+// Counts only: no ticket content, so it's safe for the local health monitor
+export function outboxStatus(now: Date = new Date()): OutboxStatus {
+  const rows = db.prepare("SELECT status, COUNT(*) AS c FROM enterprise_outbox GROUP BY status").all() as
+    { status: string; c: number }[];
+  const count = (s: string) => rows.find((r) => r.status === s)?.c ?? 0;
+  const oldest = (db.prepare("SELECT MIN(created_at) AS t FROM enterprise_outbox WHERE status = 'pending'").get() as
+    { t: string | null }).t;
+  return {
+    enabled: BRIDGE_ENABLED,
+    pending: count("pending"),
+    failed: count("failed"),
+    sent: count("sent"),
+    oldestPendingAt: oldest,
+    oldestPendingMinutes: oldest ? Math.max(0, Math.floor((now.getTime() - Date.parse(oldest)) / 60_000)) : null,
+  };
+}
+
+export interface OutboxProblem {
+  ticketId: string;
+  status: string;
+  attempts: number;
+  lastError: string | null;
+  createdAt: string;
+  nextAttemptAt: string;
+}
+
+// Tickets that haven't reached Enterprise, oldest first, for admins
+export function outboxProblems(limit = 20): OutboxProblem[] {
+  return db.prepare(`
+    SELECT ticket_id AS ticketId, status, attempts, last_error AS lastError,
+           created_at AS createdAt, next_attempt_at AS nextAttemptAt
+    FROM enterprise_outbox WHERE status IN ('pending', 'failed')
+    ORDER BY created_at LIMIT ?
+  `).all(limit) as OutboxProblem[];
+}
+
+// True for requests from this machine only (IPv4, IPv6 and IPv4-mapped loopback)
+export function isLoopbackAddress(ip: string | undefined): boolean {
+  if (!ip) return false;
+  const v4 = ip.startsWith("::ffff:") ? ip.slice(7) : ip;
+  return v4 === "::1" || /^127\.\d+\.\d+\.\d+$/.test(v4);
+}
+
 // Called after a ticket is queued so it's sent right away instead of waiting
 // for the next poll. Does nothing if the worker isn't running.
 export function kickBridge(): void {

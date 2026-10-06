@@ -17,7 +17,7 @@ import jwt from "jsonwebtoken";
 import { JwtPayload } from "./types/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import db from "./db.js";
-import { startBridge } from "./enterpriseBridge.js";
+import { startBridge, outboxStatus, isLoopbackAddress } from "./enterpriseBridge.js";
 
 import authRoute      from "./routes/auth.js";
 import dashboardRoute from "./routes/dashboard.js";
@@ -115,6 +115,21 @@ app.get("/health", (_req, res) => {
   } catch (err) {
     console.error(`[health] Database check failed: ${(err as Error).message}`);
     res.status(503).json({ status: "error", db: "unavailable" });
+  }
+});
+
+// Bridge outbox counts for the health monitor on this machine. No sign-in, so
+// it answers only local requests; elsewhere it looks like any unknown route.
+app.get("/health/bridge", (req, res) => {
+  if (!isLoopbackAddress(req.socket.remoteAddress)) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+  try {
+    res.json(outboxStatus());
+  } catch (err) {
+    console.error(`[health] Bridge status failed: ${(err as Error).message}`);
+    res.status(503).json({ error: "unavailable" });
   }
 });
 
