@@ -5,11 +5,12 @@
 
 .DESCRIPTION
     Interactive console UI for installing, configuring, and verifying all three
-    DeskSOS components: Desktop App, Backend API, and Mobile Companion App.
+    DeskSOS components for development: the Desktop app and the backend API.
+    Production server setup is in docs/OPERATIONS.md, not here.
 
 .NOTES
     Run from: C:\Projects\DESKSOS\tauri-app\
-    Requires: Node.js 22+, Rust/Cargo (for desktop build), Android Studio (for mobile)
+    Requires: Node.js 20+, Rust/Cargo (for the desktop build)
 #>
 
 $ErrorActionPreference = "Stop"
@@ -23,7 +24,6 @@ $BUNDLE_DIR    = Join-Path $ROOT      "src-tauri\target\release\bundle"
 $NSIS_EXE      = Join-Path $BUNDLE_DIR "nsis\DeskSOS_${APP_VERSION}_x64-setup.exe"
 $MSI_FILE      = Join-Path $BUNDLE_DIR "msi\DeskSOS_${APP_VERSION}_x64_en-US.msi"
 $BACKEND_DIR   = Join-Path $PROJECT_ROOT "backend"
-$MOBILE_DIR    = Join-Path $PROJECT_ROOT "DeskSOSMobile"
 $DEPLOY_DIR    = Join-Path $PROJECT_ROOT "deployment-package"
 
 # ---- UI Helpers --------------------------------------------------------------
@@ -77,21 +77,11 @@ function Show-PrereqCheck {
         }
     }
 
-    # Android SDK (optional - mobile only)
-    $androidHome = $env:ANDROID_HOME
-    if (-not $androidHome) { $androidHome = "$env:LOCALAPPDATA\Android\Sdk" }
-    if (Test-Path $androidHome) {
-        Write-OK "Android SDK: $androidHome"
-    } else {
-        Write-Warn "Android SDK not found (required only for mobile builds)"
-        Write-Info "Expected: $androidHome"
-    }
-
     Write-Host ""
     if ($allOk) {
         Write-OK "All core prerequisites satisfied."
     } else {
-        Write-Warn "Some prerequisites are missing. Desktop/mobile builds may fail."
+        Write-Warn "Some prerequisites are missing. The desktop build may fail."
     }
 
     Pause-Screen
@@ -230,10 +220,13 @@ function Invoke-BackendStart {
     # Verify .env
     $envFile = Join-Path $BACKEND_DIR ".env"
     if (-not (Test-Path $envFile)) {
-        Write-Warn ".env not found - creating default..."
-        "PORT=5000`nJWT_SECRET=desksos-super-secret-jwt-key-change-in-production" |
+        Write-Warn ".env not found - creating a development .env..."
+        # A fresh random secret: never a fixed value that is published in this repo
+        $bytes = New-Object byte[] 48
+        [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
+        "PORT=5000`nJWT_SECRET=$([Convert]::ToBase64String($bytes))" |
             Set-Content $envFile -Encoding UTF8
-        Write-OK ".env created (update JWT_SECRET before production use)."
+        Write-OK ".env created with a random JWT_SECRET (development only)."
     } else {
         Write-OK ".env found."
     }
@@ -295,7 +288,8 @@ function Invoke-BackendStart {
     }
 
     Write-Host ""
-    Write-Info "Seeded credentials:"
+    Write-Info "Development logins (dev database only; production accounts get"
+    Write-Info "random passwords - see docs/OPERATIONS.md):"
     Write-Info "  admin@desksos.com / password123"
     Write-Info "  tech@desksos.com  / password123"
     Write-Info ""
@@ -346,67 +340,6 @@ function Show-BackendStatus {
         }
     }
 
-    Pause-Screen
-}
-
-# ---- Mobile: Setup -----------------------------------------------------------
-function Invoke-MobileSetup {
-    Show-Header
-    Show-SectionHeader "Mobile App - Setup and Build"
-
-    if (-not (Test-Path $MOBILE_DIR)) {
-        Write-Fail "DeskSOSMobile/ not found at: $MOBILE_DIR"
-        Pause-Screen; return
-    }
-    if (-not (Test-Command "node")) {
-        Write-Fail "Node.js not found."
-        Pause-Screen; return
-    }
-
-    # Install deps
-    Write-Step "Installing mobile dependencies..."
-    Push-Location $MOBILE_DIR
-    npm install --silent
-    if ($LASTEXITCODE -ne 0) { Write-Fail "npm install failed."; Pop-Location; Pause-Screen; return }
-    Write-OK "Dependencies installed."
-
-    # Android SDK check
-    $androidHome = $env:ANDROID_HOME
-    if (-not $androidHome) { $androidHome = "$env:LOCALAPPDATA\Android\Sdk" }
-    if (Test-Path $androidHome) {
-        $env:ANDROID_HOME = $androidHome
-        Write-OK "Android SDK: $androidHome"
-    } else {
-        Write-Warn "ANDROID_HOME not set. Android builds require Android Studio."
-        Write-Info "Install from: https://developer.android.com/studio"
-    }
-
-    Write-Host ""
-    Write-Host "  Choose build target:" -ForegroundColor White
-    Write-Host "    [1] Android (emulator / device)"
-    Write-Host "    [2] Start Metro bundler only"
-    Write-Host "    [3] Back"
-    Write-Host ""
-    $choice = Read-Host "  Choice"
-    switch ($choice) {
-        "1" {
-            Write-Step "Launching Android build in new window..."
-            Write-Info "Ensure an emulator is running or a device is connected via USB."
-            $mobileDir   = $MOBILE_DIR
-            $androidSdk  = $androidHome
-            Start-Process powershell -ArgumentList "-NoExit", "-Command",
-                "Set-Location '$mobileDir'; `$env:ANDROID_HOME='$androidSdk'; npm run android"
-            Write-OK "Android build launched."
-        }
-        "2" {
-            Write-Step "Starting Metro bundler on port 8081..."
-            $mobileDir = $MOBILE_DIR
-            Start-Process powershell -ArgumentList "-NoExit", "-Command",
-                "Set-Location '$mobileDir'; npx @react-native-community/cli start --port 8081"
-            Write-OK "Metro launched in new window."
-        }
-    }
-    Pop-Location
     Pause-Screen
 }
 
@@ -465,18 +398,6 @@ function Invoke-VerifyAll {
             Write-Warn "Backend API not reachable on port 5000"
             $results.Add([PSCustomObject]@{ Component="Backend API"; Status="OFFLINE" })
         }
-    }
-
-    # Mobile project
-    $mobilePkg = Join-Path $MOBILE_DIR "package.json"
-    if (Test-Path $mobilePkg) {
-        $nm   = Join-Path $MOBILE_DIR "node_modules"
-        $deps = if (Test-Path $nm) { "deps installed" } else { "run npm install" }
-        Write-OK "Mobile project found  ($deps)"
-        $results.Add([PSCustomObject]@{ Component="Mobile App"; Status="PRESENT" })
-    } else {
-        Write-Fail "Mobile project not found at $MOBILE_DIR"
-        $results.Add([PSCustomObject]@{ Component="Mobile App"; Status="NOT FOUND" })
     }
 
     # Admin check
@@ -541,15 +462,12 @@ function Show-MainMenu {
     Write-Host "    [3]  Install desktop app"
     Write-Host ""
     Write-Host "  BACKEND API" -ForegroundColor White
-    Write-Host "    [4]  Start backend API  (port 5000)"
+    Write-Host "    [4]  Start backend API  (development, port 5000)"
     Write-Host "    [5]  Show backend status and test endpoints"
     Write-Host ""
-    Write-Host "  MOBILE APP" -ForegroundColor White
-    Write-Host "    [6]  Setup and build mobile app  (Android / Metro)"
-    Write-Host ""
     Write-Host "  SYSTEM" -ForegroundColor White
-    Write-Host "    [7]  Verify full installation"
-    Write-Host "    [8]  Enterprise / GPO deployment guide"
+    Write-Host "    [6]  Verify full installation"
+    Write-Host "    [7]  Enterprise / GPO deployment guide"
     Write-Host "    [Q]  Quit"
     Write-Host ""
 }
@@ -564,9 +482,8 @@ do {
         "3" { Invoke-DesktopInstall }
         "4" { Invoke-BackendStart }
         "5" { Show-BackendStatus }
-        "6" { Invoke-MobileSetup }
-        "7" { Invoke-VerifyAll }
-        "8" { Show-EnterpriseDeploy }
+        "6" { Invoke-VerifyAll }
+        "7" { Show-EnterpriseDeploy }
         "Q" {
             Show-Header
             Write-Host "  Goodbye." -ForegroundColor Cyan

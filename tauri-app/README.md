@@ -55,7 +55,10 @@ tauri-app/
 └── package.json
 ```
 
-**Data pattern:** All modules call `invoke("run_custom_powershell", { command: "..." })` → Rust executes PowerShell → returns JSON string → parsed in React.
+**Data pattern:**
+
+- The local diagnostic modules call `invoke("run_custom_powershell", { command: "..." })`. Rust runs PowerShell, returns a JSON string, and React parses it.
+- Dashboard, Ticket Builder, Chat and Remote Session call the DeskSOS backend instead (`src/api.ts`, Socket.IO). The server address comes from `VITE_API_URL`: `.env.production` for release builds (`https://FORD-DC01:5443`), `http://localhost:5000` in development and `.env.test` for e2e. The address must also be allowed in the CSP in `src-tauri/tauri.conf.json`.
 
 ## Development
 

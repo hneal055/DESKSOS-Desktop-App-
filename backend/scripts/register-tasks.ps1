@@ -13,8 +13,8 @@
 
 .EXAMPLE
     pwsh scripts/register-tasks.ps1                       # backup only
-    pwsh scripts/register-tasks.ps1 -HealthUrl https://desksos-server:5000/health
-    pwsh scripts/register-tasks.ps1 -BackendAutostart -HealthUrl https://desksos-server:5000/health
+    pwsh scripts/register-tasks.ps1 -HealthUrl https://FORD-DC01:5443/health
+    pwsh scripts/register-tasks.ps1 -BackendAutostart -HealthUrl https://FORD-DC01:5443/health
 
 .NOTES
     Backups land in data/backups by default. To keep a copy off this machine,
