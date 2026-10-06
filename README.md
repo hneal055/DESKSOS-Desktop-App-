@@ -14,6 +14,8 @@ New tickets are also forwarded to **DeskSOS Enterprise**, the operations dashboa
 
 **Running the production server?** Start with [docs/OPERATIONS.md](docs/OPERATIONS.md), the runbook. It covers setup, daily operation, backups, the Enterprise bridge, building and distributing the app, and troubleshooting.
 
+**Using the app?** Technicians: see the [technician guide](docs/TECHNICIAN-GUIDE.md).
+
 ---
 
 ## Features
