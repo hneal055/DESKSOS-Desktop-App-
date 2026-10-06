@@ -224,6 +224,18 @@ pm2 flush desksos-backend          # Administrator window
 The app has no change-password screen yet. The script calls the backend's
 `PATCH /auth/change-password` and asks for passwords at hidden prompts.
 
+**Lost password.** If nobody knows an account's current password, set a new
+random one from the server (prints it once; the backend can stay running):
+
+```powershell
+node scripts/reset-password.js --prod --list               # accounts in desksos-prod.db
+node scripts/reset-password.js --prod admin@desksos.com    # new password, shown once
+pwsh scripts/change-password.ps1 -Email admin@desksos.com  # then set your own
+```
+
+Sessions already signed in stay valid until their token expires. To end them
+all, run `pwsh scripts/rotate-secret.ps1 -Restart`.
+
 ### 3.7 Register the automated tasks
 
 From an elevated window:
@@ -366,6 +378,7 @@ Once section 3 is done, nothing needs to be started by hand.
 | Deploy new code | `git pull; npm ci; pwsh scripts/start-production.ps1` (build → backup → reload) |
 | Manual backup (production DB) | `pwsh scripts/backup-prod.ps1` (`npm run backup` backs up the dev DB) |
 | Change a user's password | `pwsh scripts/change-password.ps1 -Email <user>` |
+| Reset a lost password | `node scripts/reset-password.js --prod <user>` (prints a new one once) |
 | Rotate JWT secret | `pwsh scripts/rotate-secret.ps1 -Restart` (logs everyone out) |
 | Renew certificate | `pwsh scripts/gen-cert.ps1 -Names localhost,127.0.0.1,FORD-DC01,192.168.12.196; pm2 reload desksos-backend` |
 | Simulate a reboot | `Start-ScheduledTask "DeskSOS Backend Startup"` |
