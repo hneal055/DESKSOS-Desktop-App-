@@ -1,155 +1,54 @@
-# 🛠️ DeskSOS Desktop Support Toolkit - Deployment Package
+# DeskSOS deployment package
 
-**Version:** 1.0.0  
-**Build Date:** 2026-02-24  
-**Platform:** Windows 10/11 (x64)
+This folder holds scripts and documents for installing the DeskSOS desktop app on users' PCs. **The installers aren't stored here**, because build outputs are kept out of git. Build them first (step 1).
 
----
+The full procedure is in [docs/OPERATIONS.md §6](../docs/OPERATIONS.md#6-desktop-app-building-and-distributing). This page is a summary.
 
-## 📦 Package Contents
+## 1. Build the installers
 
-```
-deployment-package/
-├── DeskSOS_1.0.0_x64_en-US.msi       (3.77 MB) - Enterprise MSI Installer
-├── DeskSOS_1.0.0_x64-setup.exe       (2.46 MB) - Standalone EXE Installer
-├── README.md                         - This file
-├── DEPLOYMENT-GUIDE.md               - Detailed deployment instructions
-├── QUICK-START.md                    - Quick installation guide
-├── GPO-Deployment.ps1                - Group Policy deployment script
-├── Intune-Deployment.ps1             - Microsoft Intune deployment script
-├── Manual-Deployment.ps1             - Manual workstation deployment script
-├── Uninstall.ps1                     - Uninstallation script
-├── Verify-Installation.ps1           - Installation verification script
-└── USER-GUIDE.md                     - End-user documentation
+On the build PC (FORD-DC01):
+
+```powershell
+cd C:\Projects\DESKSOS-Desktop\tauri-app
+npm ci
+npm run tauri build
 ```
 
----
+The output is in `tauri-app\src-tauri\target\release\bundle\`:
 
-## ⚡ Quick Start
+| File | Use |
+|---|---|
+| `nsis\DeskSOS_<version>_x64-setup.exe` | **Recommended.** Installs WebView2 if it's missing |
+| `msi\DeskSOS_<version>_x64_en-US.msi` | Scripted or managed deployment (the scripts below, Intune) |
 
-### Installer Options (choose based on deployment method)
-- **MSI:** `DeskSOS_1.0.0_x64_en-US.msi` (recommended for GPO, Intune, and scripted enterprise deployment)
-- **EXE:** `DeskSOS_1.0.0_x64-setup.exe` (recommended for manual single-workstation installs)
+Release builds connect to `https://FORD-DC01:5443`, as set in `tauri-app/.env.production`. Increase `version` in `tauri-app/src-tauri/tauri.conf.json` for each new release.
 
-### For IT Administrators (GPO Deployment)
-1. Copy `DeskSOS_1.0.0_x64_en-US.msi` to a network share
-2. Run `GPO-Deployment.ps1` (requires Domain Admin rights)
-3. Link the created GPO to your IT Support OU
+## 2. Before installing on a PC
 
-### For Individual Workstations
-1. Run `Manual-Deployment.ps1` as Administrator (uses the MSI)
-2. Or double-click `DeskSOS_1.0.0_x64-setup.exe`
+1. **Trust the DeskSOS certificate authority once per PC.** Without this the app can't reach the server. Copy `rootCA.pem` (never `rootCA-key.pem`) from `mkcert -CAROOT` on the server, then on the PC, in an elevated window:
+   ```powershell
+   Import-Certificate -FilePath .\rootCA.pem -CertStoreLocation Cert:\LocalMachine\Root
+   ```
+   Then check that `https://FORD-DC01:5443/health` opens in Edge without a warning.
+2. **Create the user's account** on the server. Don't share the admin login.
 
----
+The installers aren't code-signed yet, so SmartScreen shows "Windows protected your PC". Choose **More info → Run anyway**. Signing is plan task 5.1.
 
-## 🎯 What is DeskSOS?
+## Contents of this folder
 
-DeskSOS is a native Windows desktop application designed for IT support technicians to perform common troubleshooting tasks quickly and efficiently.
+| File | Purpose |
+|---|---|
+| [QUICK-START.md](QUICK-START.md) | Installing on one PC, step by step |
+| `Manual-Deployment.ps1` | Installs the MSI on the PC it runs on |
+| `GPO-Deployment.ps1` | Group Policy deployment. **Doesn't apply to FORD-DC01's network:** it's a workgroup with no domain. Kept for future use |
+| `Verify-Installation.ps1` | Checks an installed PC |
+| `Uninstall.ps1` | Removes the app |
+| `DeskSOS-Validation.ps1` | A broader validation script |
+| `USER-GUIDE.md`, `TESTING-CHECKLIST.md`, `VALIDATION-CHECKLIST.md` | **Outdated.** They're from February 2026, before sign-in, tickets and the server existed. They'll be rewritten in Phase 6 (user guides) |
 
-### Key Features
+The deployment scripts were written for the February installers. Test them against the current MSI name and version before relying on them (plan Phase 5).
 
-**🏠 Dashboard Module**
-- Real-time system health monitoring
-- Computer name, IP address, OS version
-- Disk space and memory usage
-- Network connectivity status (Gateway, DNS, Internet, VPN)
+## Updating and uninstalling
 
-**🔧 Fix It Center**
-- One-click network repairs (DNS flush, IP renewal, network reset)
-- Printer troubleshooting (restart spooler, clear print queue)
-- Performance optimization (clear temp files)
-
-**📊 Process Manager**
-- View top 10 processes by CPU/memory usage
-- Kill unresponsive processes
-- Real-time refresh
-
-**💻 PowerShell Console**
-- Execute custom PowerShell commands
-- View command output in real-time
-- Command history
-
----
-
-## 🔐 Security & Requirements
-
-### System Requirements
-- **OS:** Windows 10 (1809+) or Windows 11
-- **RAM:** 100 MB
-- **Disk:** 10 MB
-- **Network:** Optional (for network diagnostics)
-
-### Permissions Required
-- **Standard User:** Can view system information
-- **Administrator:** Required for network repairs, process management, PowerShell execution
-
-### Security Features
-- No external API calls (fully offline)
-- Direct PowerShell execution (no remote code)
-- Native Windows APIs only
-- Code-signed installer (optional - add your certificate)
-
----
-
-## 📋 Deployment Options
-
-| Method | Best For | Effort | Automation |
-|--------|----------|--------|------------|
-| **Group Policy (GPO)** | 50+ workstations | Low | Full |
-| **Microsoft Intune** | Cloud-managed devices | Low | Full |
-| **SCCM/ConfigMgr** | Enterprise (1000+ devices) | Medium | Full |
-| **PowerShell Script** | 10-50 workstations | Low | Partial |
-| **Manual Install** | 1-10 workstations | High | None |
-
-See `DEPLOYMENT-GUIDE.md` for detailed instructions for each method.
-
----
-
-## 🚀 Installation Locations
-
-**Application Files:**
-```
-C:\Program Files\DeskSOS\
-├── DeskSOS.exe           - Main application
-├── resources\            - UI assets
-└── *.dll                 - Dependencies
-```
-
-**Registry Keys:**
-```
-HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{GUID}
-```
-
-**Desktop Shortcut (Optional):**
-```
-C:\Users\Public\Desktop\DeskSOS.lnk
-```
-
----
-
-## 📞 Support & Documentation
-
-- **Deployment Guide:** `DEPLOYMENT-GUIDE.md`
-- **User Guide:** `USER-GUIDE.md`
-- **Quick Start:** `QUICK-START.md`
-- **Troubleshooting:** See DEPLOYMENT-GUIDE.md § Troubleshooting
-
----
-
-## 🔄 Updating
-
-To deploy a new version:
-1. Build new installer with updated version number
-2. Replace MSI/EXE files in deployment package
-3. Redeploy using the same method (GPO will auto-upgrade)
-
----
-
-## 📄 License
-
-Internal use only. Not for redistribution.
-
----
-
-**Created:** February 24, 2026  
-**Maintainer:** IT Operations Team
+- **Update:** build with a higher version and run the new installer over the old one. Settings and sign-in are kept, and there's no auto-updater.
+- **Uninstall:** Settings → Apps → **DeskSOS** → Uninstall, or `Uninstall.ps1`. See OPERATIONS §6.5 for removing the certificate.

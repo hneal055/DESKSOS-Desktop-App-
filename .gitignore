@@ -43,3 +43,8 @@ Thumbs.db
 backend/data/desksos-prod.db*
 backend/data/*.db-wal
 backend/data/*.db-shm
+
+# Local databases (dev and production) and per-user Claude settings
+backend/data/*.db
+backend/data/*.db-*
+.claude/settings.local.json

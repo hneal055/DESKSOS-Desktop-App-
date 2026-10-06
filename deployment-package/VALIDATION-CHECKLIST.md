@@ -1,5 +1,7 @@
 # 🧪 DeskSOS Performance Validation Checklist
 
+> **Outdated (February 2026).** This predates sign-in, tickets, chat and the DeskSOS server, and will be rewritten in Phase 6 (user guides). For current setup see [README.md](README.md) and [docs/OPERATIONS.md](../docs/OPERATIONS.md).
+
 **Installation Date:** February 25, 2026  
 **Test Environment:** Single Workstation / End User  
 **Application Version:** 1.0.0
