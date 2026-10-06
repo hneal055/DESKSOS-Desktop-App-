@@ -31,10 +31,18 @@ const args  = process.argv.slice(2);
 const prod  = args.includes("--prod");
 const list  = args.includes("--list");
 const email = args.find((a) => !a.startsWith("--"));
+const usage = "Usage: node scripts/reset-password.js [--prod] <email>   |   [--prod] --list";
 
-if (args.includes("--help") || (!list && !email)) {
-  console.log("Usage: node scripts/reset-password.js [--prod] <email>   |   [--prod] --list");
-  process.exit(args.includes("--help") ? 0 : 1);
+if (args.includes("--help")) {
+  console.log(usage);
+  process.exit(0);
+}
+// A mistyped option (e.g. --prodd) must not silently fall back to the dev database
+const unknown = args.filter((a) => a.startsWith("--") && a !== "--prod" && a !== "--list");
+if (unknown.length || args.filter((a) => !a.startsWith("--")).length > 1 || (!list && !email)) {
+  if (unknown.length) console.error(`Unknown option: ${unknown.join(", ")}`);
+  console.error(usage);
+  process.exit(1);
 }
 
 const dataDir = path.join(__dirname, "..", "data");

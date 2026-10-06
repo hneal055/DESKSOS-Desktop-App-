@@ -54,4 +54,13 @@ describe("scripts/reset-password.js", () => {
     expect(run().status).toBe(1);
     expect(fs.existsSync(path.join(dir, "missing.db"))).toBe(false);
   });
+
+  it("rejects a mistyped option or extra arguments instead of using another database", () => {
+    const before = hashOf("admin@desksos.com");
+    const typo = run("--prodd", "admin@desksos.com");
+    expect(typo.status).toBe(1);
+    expect(typo.stderr).toMatch(/Unknown option: --prodd/);
+    expect(run("admin@desksos.com", "tech@desksos.com").status).toBe(1);
+    expect(hashOf("admin@desksos.com")).toBe(before);
+  });
 });
