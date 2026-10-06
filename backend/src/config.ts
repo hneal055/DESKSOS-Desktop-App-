@@ -1,4 +1,19 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+
+// backend/, from src/ or dist/
+const BACKEND_DIR = path.resolve(__dirname, "..");
+
+// Production loads backend/.env.production first and lets it OVERRIDE
+// inherited variables, so production secrets (such as its own Enterprise
+// ingest key) win over the shared .env and over stale values passed down by a
+// shell or the PM2 daemon. Keep only secrets there; settings live in
+// ecosystem.config.js. The shared .env is then loaded without overriding.
+export function envFilesFor(nodeEnv: string | undefined, dir = BACKEND_DIR): { path: string; override: boolean }[] {
+  const shared = { path: path.join(dir, ".env"), override: false };
+  return nodeEnv === "production" ? [{ path: path.join(dir, ".env.production"), override: true }, shared] : [shared];
+}
+for (const file of envFilesFor(process.env.NODE_ENV)) dotenv.config(file);
 
 function requireEnv(name: string, minLength = 0): string {
   const val = process.env[name];

@@ -133,7 +133,11 @@ export async function processOutbox(opts: BridgeOptions): Promise<OutboxRunSumma
         error = `HTTP ${res.status}${text ? `: ${text.slice(0, 300)}` : ""}`;
         retryable = isRetryableStatus(res.status);
       } catch (err) {
-        error = `Request failed: ${(err as Error).message}`;
+        // Node's fetch reports most failures as just "fetch failed"; the real
+        // reason (refused connection, untrusted certificate, DNS) is in cause
+        const cause = (err as { cause?: { message?: string; code?: string } }).cause;
+        const detail = cause ? ` (${cause.code ? `${cause.code}: ` : ""}${cause.message ?? ""})` : "";
+        error = `Request failed: ${(err as Error).message}${detail}`;
         retryable = true;
       }
 

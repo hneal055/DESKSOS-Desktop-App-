@@ -195,6 +195,18 @@ describe("processOutbox", () => {
     expect(later).not.toHaveBeenCalled();
   });
 
+  it("records the underlying reason when fetch fails (e.g. an untrusted certificate)", async () => {
+    const t = await createTicket();
+    const fetchImpl = jest.fn(async () => {
+      const err = new TypeError("fetch failed");
+      err.cause = { code: "UNABLE_TO_VERIFY_LEAF_SIGNATURE", message: "unable to verify the first certificate" };
+      throw err;
+    });
+    await processOutbox(opts(fetchImpl));
+    expect(outbox(t.id).status).toBe("pending");
+    expect(outbox(t.id).last_error).toMatch(/fetch failed \(UNABLE_TO_VERIFY_LEAF_SIGNATURE: unable to verify the first certificate\)/);
+  });
+
   it("stops the batch after a network error instead of hammering a down server", async () => {
     const a = await createTicket();
     const b = await createTicket();
