@@ -397,7 +397,8 @@ Once section 3 is done, nothing needs to be started by hand.
 |---|---|
 | Backend crashes | PM2 restarts it after 3 s (up to 10 times; it must stay up 10 s to count as a successful start) |
 | Memory over 512 MB | PM2 restarts it |
-| Backend down or back up | One email for each change (monitor) |
+| Backend down or back up | One alert for each change (Discord/Teams/email; monitor) |
+| Backend still down at the next check (5–10 min) | **Self-healing:** the monitor runs `DeskSOS Backend Startup` (at most 3 times an hour, then one "gave up" alert). Paused while `backend\logs\MAINTENANCE` exists |
 | TLS certificate within 14 days of expiry | One email a day |
 | 02:00 | Database backup; the oldest copies beyond 14 are deleted |
 | Midnight or 10 MB | PM2 logs rotate (14 kept, compressed) |
@@ -409,6 +410,13 @@ Once section 3 is done, nothing needs to be started by hand.
 > production PM2 daemon runs elevated (setup and the boot task both run as
 > administrator). A non-elevated window can't reach it, and running `pm2` there
 > starts a second, broken daemon.
+>
+> **Don't (re)start production from a window you might close.** On Windows,
+> the PM2 daemon belongs to the console window that first started it. Closing
+> that window stops every production app (2026-10-06: both DeskSOS products
+> were down for about 30 minutes). Starting through
+> `Start-ScheduledTask "DeskSOS Backend Startup"` runs PM2 with no window
+> attached.
 
 | Task | Command (from `backend/`) |
 |---|---|
@@ -416,7 +424,8 @@ Once section 3 is done, nothing needs to be started by hand.
 | Live logs | `pm2 logs desksos-backend` |
 | Live CPU/memory | `pm2 monit` |
 | Restart without downtime | `pm2 reload desksos-backend` |
-| Stop / start | `pm2 stop desksos-backend` / `pm2 start desksos-backend` |
+| Start or restart (preferred: no window involved) | `Start-ScheduledTask "DeskSOS Backend Startup"` |
+| Stop on purpose | `New-Item logs\MAINTENANCE -Force` **first** (or self-healing restarts it within about 10 minutes), then `pm2 stop desksos-backend`. To finish: `Start-ScheduledTask "DeskSOS Backend Startup"`, check `/health`, then `Remove-Item logs\MAINTENANCE` |
 | Deploy new code | `git pull; npm ci; pwsh scripts/start-production.ps1` (build → backup → reload) |
 | Manual backup (production DB) | `pwsh scripts/backup-prod.ps1` (`npm run backup` backs up the dev DB) |
 | Change a user's password | `pwsh scripts/change-password.ps1 -Email <user>` |
