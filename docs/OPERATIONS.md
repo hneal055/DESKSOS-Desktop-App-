@@ -541,15 +541,34 @@ Administrator account's certificate store on FORD-DC01, and its private key is
 ### 6.3 Install on a user's PC
 
 1. **Copy the release folder** to the PC: a USB stick or a network share.
-2. **Trust DeskSOS (one time per PC).** In the folder, open PowerShell **as administrator**:
+2. **Trust DeskSOS (one time per PC).** The official fingerprints are below.
+   Read them **here, in the repository on GitHub**, not from the copied
+   folder: a tampered USB stick or share could change the folder, but not
+   this page.
+
+   | Certificate | Fingerprint (SHA-1 thumbprint) |
+   |---|---|
+   | DeskSOS server CA (`desksos-ca.crt`) | `E2EC9250F1D17D362FFAEA3C20C28C530418C4BB` |
+   | DeskSOS code signing (`desksos-codesign.cer`, also signs the setup script) | `B526E5D2BBE118C72EEA6F619F6465B2F398435A` |
+
+   Update this table if either certificate is ever recreated (§6.2 step 3). `build-release.ps1` prints both fingerprints at the end of every build.
+
+   In the folder, open PowerShell **as administrator**. First check who
+   signed the setup script. The thumbprint must be the code-signing one above:
+   ```powershell
+   (Get-AuthenticodeSignature .\Trust-DeskSOS.ps1).SignerCertificate.Thumbprint
+   ```
+   Then run it. It shows both fingerprints and changes nothing until you type
+   `YES` (`-Yes` skips the prompt, for scripted use):
    ```powershell
    powershell -ExecutionPolicy Bypass -File .\Trust-DeskSOS.ps1
    ```
    This adds the DeskSOS server CA to Trusted Root, and the code-signing
    certificate to Trusted Root and Trusted Publishers. Both are public
    certificates, and running it twice is harmless. `-Check` reports the PC's
-   state and `-Remove` undoes it. Then **close every browser window**,
-   including the tray icon.
+   state, and passes only when the trust applies to all users. `-Remove`
+   undoes it for the PC and the current user. Then **close every browser
+   window**, including the tray icon.
 3. **Run `DeskSOS_<version>_x64-setup.exe`.** Windows shows **DeskSOS** as the
    verified publisher.
    - **SmartScreen:** it judges downloaded files by reputation. If the

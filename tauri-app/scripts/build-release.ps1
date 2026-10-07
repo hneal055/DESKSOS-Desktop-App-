@@ -97,14 +97,34 @@ try {
     Copy-Item $inner.FullName $innerCopy
     $checkFiles = $files + $innerCopy
 } finally { Remove-Item $unpacked -Recurse -Force -ErrorAction SilentlyContinue }
+# A signature passes only if it's Valid, or if the one problem is that the
+# self-made certificate isn't a trusted root on this build PC. That case is
+# proven separately: the signer must chain to exactly our certificate when
+# it's supplied as the only extra trust anchor (revocation not checked).
+function Test-DeskSOSSignature([string]$Path) {
+    $sig = Get-AuthenticodeSignature $Path
+    $name = Split-Path $Path -Leaf
+    if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { Fail "$name is not signed with the DeskSOS certificate ($($sig.Status))" }
+    if ($sig.Status -ne 'Valid') {
+        if ($sig.Status -ne 'UnknownError') { Fail "${name}: signature status $($sig.Status): $($sig.StatusMessage)" }
+        $chain = [Security.Cryptography.X509Certificates.X509Chain]::new()
+        $chain.ChainPolicy.RevocationMode = 'NoCheck'
+        $chain.ChainPolicy.VerificationFlags = 'AllowUnknownCertificateAuthority'
+        [void]$chain.ChainPolicy.ExtraStore.Add($cert)
+        $built = $chain.Build($sig.SignerCertificate)
+        $root = $chain.ChainElements[$chain.ChainElements.Count - 1].Certificate
+        $onlyUntrusted = @($chain.ChainStatus | Where-Object { $_.Status -ne 'UntrustedRoot' }).Count -eq 0
+        if (-not ($built -and $onlyUntrusted -and $root.Thumbprint -eq $cert.Thumbprint)) {
+            Fail "${name}: signature isn't valid ($($sig.StatusMessage); chain: $(($chain.ChainStatus | ForEach-Object Status) -join ', '))"
+        }
+    }
+    if (-not $NoTimestamp -and -not $sig.TimeStamperCertificate) { Fail "$name is not timestamped" }
+    return $sig
+}
+
 foreach ($f in $checkFiles) {
     if (-not (Test-Path $f)) { Fail "missing build output $f" }
-    $sig = Get-AuthenticodeSignature $f
-    # On this PC the self-made certificate isn't a trusted root, so the status
-    # is "UnknownError"; what matters is who signed it and that it's intact
-    if (-not $sig.SignerCertificate -or $sig.SignerCertificate.Thumbprint -ne $cert.Thumbprint) { Fail "$(Split-Path $f -Leaf) is not signed with the DeskSOS certificate ($($sig.Status))" }
-    if ($sig.Status -eq 'HashMismatch' -or $sig.Status -eq 'NotSigned') { Fail "$(Split-Path $f -Leaf): $($sig.Status)" }
-    if (-not $NoTimestamp -and -not $sig.TimeStamperCertificate) { Fail "$(Split-Path $f -Leaf) is not timestamped" }
+    $sig = Test-DeskSOSSignature $f
     $label = if ($f -eq $innerCopy) { 'desksos.exe (installed app, from the MSI)' } else { Split-Path $f -Leaf }
     Write-Host ("  {0}: signed by DeskSOS{1}" -f $label, $(if ($sig.TimeStamperCertificate) { ", timestamped" } else { "" }))
 }
@@ -118,6 +138,14 @@ Copy-Item $files[0], $files[1] $out
 Copy-Item $CaCert (Join-Path $out 'desksos-ca.crt')
 Export-Certificate -Cert $cert -FilePath (Join-Path $out 'desksos-codesign.cer') -Type CERT | Out-Null
 Copy-Item (Join-Path $repo 'deployment-package\Trust-DeskSOS.ps1') $out
+# Sign the trust script too, so a PC can check who made it before running it
+# as administrator (compare the signer with the fingerprint in the runbook)
+$trustScript = Join-Path $out 'Trust-DeskSOS.ps1'
+$tsArgs = @{ FilePath = $trustScript; Certificate = $cert; HashAlgorithm = 'SHA256' }
+if (-not $NoTimestamp) { $tsArgs.TimestampServer = $TimestampUrl }
+$null = Set-AuthenticodeSignature @tsArgs
+$null = Test-DeskSOSSignature $trustScript
+Write-Host "  Trust-DeskSOS.ps1: signed by DeskSOS$(if (-not $NoTimestamp) { ', timestamped' })"
 Get-ChildItem $out -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Object {
     "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower(), $_.Name
 } | Set-Content (Join-Path $out 'SHA256SUMS.txt') -Encoding ascii
@@ -125,3 +153,6 @@ Get-ChildItem $out -File | Where-Object Name -ne 'SHA256SUMS.txt' | ForEach-Obje
 Write-Host "`nRelease ready: $out" -ForegroundColor Green
 Get-ChildItem $out | Format-Table Name, @{ n = 'Size (MB)'; e = { [math]::Round($_.Length / 1MB, 2) } } -AutoSize
 Write-Host "Per PC: copy the folder, run Trust-DeskSOS.ps1 as administrator once, then the setup .exe."
+Write-Host "Fingerprints to check on each PC (also in docs/OPERATIONS.md section 6.3):"
+Write-Host ("  DeskSOS server CA:    {0}" -f ([Security.Cryptography.X509Certificates.X509Certificate2]::new($CaCert)).Thumbprint)
+Write-Host ("  DeskSOS code signing: {0}" -f $cert.Thumbprint)

@@ -17,7 +17,7 @@ $ErrorActionPreference = "Stop"
 
 # ---- Constants ---------------------------------------------------------------
 $APP_NAME      = "DeskSOS"
-$APP_VERSION   = "1.0.0"
+$APP_VERSION   = (Get-Content (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'src-tauri\tauri.conf.json') -Raw | ConvertFrom-Json).version   # follows tauri.conf.json
 $ROOT          = Split-Path -Parent $MyInvocation.MyCommand.Path   # tauri-app/
 $PROJECT_ROOT  = Split-Path -Parent $ROOT                           # DESKSOS/
 $BUNDLE_DIR    = Join-Path $ROOT      "src-tauri\target\release\bundle"
