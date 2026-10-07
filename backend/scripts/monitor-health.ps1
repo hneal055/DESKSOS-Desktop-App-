@@ -32,7 +32,13 @@ param(
     # Enterprise bridge queue (plan task 3.6). /health/bridge only answers local
     # requests, so it's always read through localhost on the same port.
     [string]$BridgeUrl,
-    [int]$BridgeStuckMinutes = 60
+    [int]$BridgeStuckMinutes = 60,
+    # Self-healing: after this many failed checks in a row, run the startup
+    # task (no console window, so PM2 can't die with one). "" turns it off.
+    # A file named MAINTENANCE in logs\ pauses it during deliberate work.
+    [string]$RestartTask = "DeskSOS Backend Startup",
+    [int]$RestartAfterChecks = 2,
+    [int]$MaxRestartsPerHour = 3
 )
 
 $root      = (Resolve-Path "$PSScriptRoot\..").Path
@@ -129,15 +135,60 @@ try {
 
 # Record a state change only once its alert has gone out; a failed email leaves
 # the old state in place so the transition (and its alert) is retried next run.
+$maintenance = Test-Path (Join-Path $logDir "MAINTENANCE")
+$healNote = if (-not $RestartTask) { "" }
+    elseif ($maintenance) { "`n`nMaintenance mode (logs\MAINTENANCE exists): it will NOT be restarted automatically." }
+    else { "`n`nIf it's still down at the next check, it will be restarted automatically." }
+
 $delivered = $true
 if ($isUp -and -not $wasUp) {
     $delivered = Send-Alert "Backend recovered" "DeskSOS backend at $Url is responding again.`n`n$detail"
 } elseif (-not $isUp -and $wasUp) {
-    $delivered = Send-Alert "Backend DOWN" "DeskSOS backend at $Url failed its health check.`n`n$detail`n`nOn the server: pm2 status / pm2 logs desksos-backend"
+    $delivered = Send-Alert "Backend DOWN" "DeskSOS backend at $Url failed its health check.`n`n$detail`n`nOn the server: pm2 status / pm2 logs desksos-backend$healNote"
 } elseif (-not $isUp) {
     Write-Log "Still down: $detail"
 }
 if ($delivered) { $state.up = $isUp }
+
+# ── Self-healing (restart a backend that stays down) ──────────────────────────
+# Restarts through the startup task, never from this process: the task runs
+# start-production.ps1 without a console, so PM2 isn't tied to any window.
+$state.downCount = if ($isUp) { 0 } else { [int]($state.downCount ?? 0) + 1 }
+$now = Get-Date
+$recent = @($state.restarts | Where-Object { $_ -and ([datetime]$_) -gt $now.AddHours(-1) })
+if ($isUp) {
+    $state.gaveUp = $false
+} elseif ($RestartTask) {
+    if ($maintenance) {
+        Write-Log "Maintenance mode (MAINTENANCE file present): not restarting"
+    } elseif ($state.downCount -lt $RestartAfterChecks) {
+        Write-Log "Self-healing: down for $($state.downCount) check(s); restarts after $RestartAfterChecks"
+    } elseif ($recent.Count -ge $MaxRestartsPerHour) {
+        if (-not $state.gaveUp) {
+            if (Send-Alert "Self-healing gave up" "The DeskSOS backend is still down after $($recent.Count) automatic restart(s) in the last hour. It needs a person.`n`nOn the server: pm2 logs desksos-backend; backend\logs\startup.log") {
+                $state.gaveUp = $true
+            }
+        } else {
+            Write-Log "Self-healing: gave up ($($recent.Count) restarts in the last hour)"
+        }
+    } else {
+        $task = Get-ScheduledTask -TaskName $RestartTask -ErrorAction SilentlyContinue
+        if (-not $task) {
+            Write-Log "Self-healing: task '$RestartTask' not found; not restarting"
+        } elseif ($task.State -eq 'Running') {
+            Write-Log "Self-healing: '$RestartTask' is already running; waiting"
+        } else {
+            try {
+                Start-ScheduledTask -TaskName $RestartTask -ErrorAction Stop
+                $recent += $now.ToString('o')
+                Send-Alert "Restarting automatically" "The DeskSOS backend has been down for $($state.downCount) checks. Started '$RestartTask' (attempt $($recent.Count) of $MaxRestartsPerHour this hour)." | Out-Null
+            } catch {
+                Send-Alert "Automatic restart failed" "Couldn't start '$RestartTask': $($_.Exception.Message)" | Out-Null
+            }
+        }
+    }
+}
+$state.restarts = $recent
 
 # ── TLS certificate expiry (https only, at most one warning per day) ──────────
 $uri = [uri]$Url
