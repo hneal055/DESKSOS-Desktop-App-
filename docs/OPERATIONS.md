@@ -447,17 +447,45 @@ Once section 3 is done, nothing needs to be started by hand.
 
 ### 4.4 Restoring a backup
 
+From `backend\`, in an Administrator window:
+
 ```powershell
 pwsh scripts/backup-prod.ps1      # 1. consistent rollback copy (includes WAL changes) in data\backups
-pm2 stop desksos-backend          # 2. Administrator window
+New-Item logs\MAINTENANCE -Force  # 2. pause self-healing, or the monitor restarts the backend mid-restore
+pm2 stop desksos-backend
 Remove-Item data\desksos-prod.db-wal, data\desksos-prod.db-shm -ErrorAction SilentlyContinue
 Copy-Item data\backups\desksos-<timestamp>.db data\desksos-prod.db
-pm2 start desksos-backend
+Start-ScheduledTask "DeskSOS Backend Startup"   # 3. start without tying PM2 to this window
+Start-Sleep 30; Invoke-RestMethod https://FORD-DC01:5443/health
+Remove-Item logs\MAINTENANCE      # 4. resume self-healing
 ```
 
 Step 1 matters: copying `desksos-prod.db` by hand misses recent changes that
 are still in the `-wal` file. To undo a bad restore, restore the backup taken
 in step 1 the same way.
+
+### 4.5 Restore drill (quarterly)
+
+This proves a backup really restores, without touching production:
+
+```powershell
+pwsh scripts/restore-drill.ps1                 # newest backup in data\backups
+pwsh scripts/restore-drill.ps1 -Backup <file>  # a specific one
+```
+
+The drill:
+
+1. copies the backup to a temporary folder
+2. checks its integrity
+3. counts tickets, users, chat messages and Enterprise outbox rows
+4. starts a throwaway backend on port 5197, with a temporary secret and the **Enterprise bridge switched off**, so old queued tickets are never re-sent
+5. checks `/health`, that `/tickets` refuses anonymous requests, and that a signed-in request returns every ticket in the backup
+6. cleans up
+
+The result is appended to `logs\restore-drill.log` as `PASS` or `FAIL`.
+Record it in the readiness plan's progress log. `data\backups` also receives
+manual dev backups (`npm run backup`), so pass `-Backup` to choose a
+production one if you've made any.
 
 ---
 
