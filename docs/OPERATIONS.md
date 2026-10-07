@@ -440,6 +440,9 @@ Once section 3 is done, nothing needs to be started by hand.
 | Deploy new code | `git pull; npm ci; pwsh scripts/start-production.ps1` (build → backup → reload) |
 | Manual backup (production DB) | `pwsh scripts/backup-prod.ps1` (`npm run backup` backs up the dev DB) |
 | Change a user's password | `pwsh scripts/change-password.ps1 -Email <user>` |
+| Add a user | `node scripts/add-user.js --prod --name "Jane Doe" --email jane@example.com` (technician; add `--role admin` for an admin). Prints a password once |
+| Remove a user | `node scripts/add-user.js --prod --remove <email>`. Existing sessions last up to 7 days; `pwsh scripts/rotate-secret.ps1 -Restart` ends them all |
+| List users | `node scripts/add-user.js --prod --list` |
 | Reset a lost password | `node scripts/reset-password.js --prod <user>` (prints a new one once) |
 | Rotate JWT secret | `pwsh scripts/rotate-secret.ps1 -Restart` (logs everyone out) |
 | Renew certificate | `pwsh scripts/gen-cert.ps1 -Names localhost,127.0.0.1,FORD-DC01,192.168.12.196; pm2 reload desksos-backend` |
@@ -603,7 +606,9 @@ Administrator account's certificate store on FORD-DC01, and its private key is
      installer arrived through a browser or email download, you may still see
      "Windows protected your PC" → **More info → Run anyway**.
    - **Avoiding it:** copying the folder by USB stick or network share avoids that.
-4. **Create their account** in the backend. Don't share the admin login.
+4. **Create their account** on the server, from `backend\`:
+   `node scripts/add-user.js --prod --name "Jane Doe" --email jane@example.com`.
+   Give them the printed password in person, by phone or by text. Don't share the admin login.
 5. **Launch** from Start menu → **DeskSOS** and log in. How to use it: [TECHNICIAN-GUIDE.md](TECHNICIAN-GUIDE.md).
 6. **Admin rights:** Renew IP, Reset Network and Clear Queue need **Run as administrator**.
 
