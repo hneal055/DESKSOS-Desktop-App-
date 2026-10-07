@@ -30,7 +30,7 @@ If the installer was downloaded through a browser or email rather than copied, W
 
 ## 3. Sign in
 
-1. An admin creates the user's account on the server. Don't share the admin login.
+1. An admin creates the user's account on the server (`node scripts/add-user.js --prod --name "…" --email …` in `backend\`, runbook §4.3) and gives them the printed password. Don't share the admin login.
 2. Start **DeskSOS** from the Start menu and sign in with that account. How to use the app: [docs/TECHNICIAN-GUIDE.md](../docs/TECHNICIAN-GUIDE.md).
 
 ## Notes
