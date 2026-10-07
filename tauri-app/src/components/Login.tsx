@@ -2,7 +2,7 @@ import { useState, FormEvent } from "react";
 import { useAuth, ApiError } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, notice } = useAuth();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [error, setError]       = useState<string | null>(null);
@@ -15,7 +15,9 @@ export default function Login() {
     try {
       await login(email.trim(), password);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Login failed");
+      setError(err instanceof ApiError
+        ? err.message
+        : "Couldn't reach the DeskSOS server. Check that this PC is on the office network.");
     } finally {
       setLoading(false);
     }
@@ -29,6 +31,12 @@ export default function Login() {
           <p className="text-gray-400 mt-1 text-sm">Desktop Support Toolkit</p>
         </div>
 
+        {notice && (
+          <div role="status" className="mb-5 bg-amber-900/40 border border-amber-600 text-amber-200 rounded-lg px-4 py-2.5 text-sm">
+            {notice}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-gray-300 text-sm mb-1" htmlFor="email">Email</label>
@@ -39,7 +47,7 @@ export default function Login() {
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@desksos.com"
+              placeholder="you@yourcompany.com"
               className="w-full bg-gray-700 text-white rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>

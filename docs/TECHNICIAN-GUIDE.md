@@ -37,8 +37,8 @@ Good to know:
 
 - You need to sign in **every time you open the app**. DeskSOS doesn't remember
   your sign-in after you close it.
-- A sign-in lasts up to 7 days. If pages that use the server start showing
-  "Invalid token", click **Sign out** and sign in again.
+- A sign-in lasts up to 7 days. When it expires, DeskSOS returns to the
+  sign-in screen with "Your session has expired. Please sign in again."
 - Only your admin can create accounts or reset passwords. The app has no
   "forgot password" option.
 
@@ -48,16 +48,16 @@ Good to know:
 |---|---|
 | "Invalid credentials" | Wrong email or password. Check them and try again. If you've forgotten your password, ask your admin to reset it. |
 | "Too many auth attempts, please try again later." | Too many attempts in a short time. Wait 15 minutes, then try again. |
-| "Login failed" | The app can't reach the server. Check you're on the office network (not guest Wi-Fi, not at home without VPN). If you are, tell your admin; the server may be down. |
+| "Couldn't reach the DeskSOS server…" | Check you're on the office network (not guest Wi-Fi, not at home without VPN). If you are, tell your admin; the server may be down. |
 | Login works for colleagues but never on your PC | Your PC may not trust the DeskSOS certificate. Your admin needs to install it on your PC (one-time setup). |
 
 ---
 
 ## 3. A tour of the sidebar
 
-Click a sidebar item to open that page. **When you switch to another page,
-the page you left is cleared**, including any ticket you were typing. Finish
-or copy your work before you move on.
+Click a sidebar item to open that page. Pages you've opened keep their
+contents when you switch away and back, including a half-written ticket,
+until you sign out or close DeskSOS.
 
 "Server" means the page needs a connection to the DeskSOS server. Pages
 without it work offline, on the local PC only.
@@ -133,9 +133,11 @@ full report.
   shows **✅ Copied!**). Paste it into an email or another system, or keep it
   if submitting fails.
 
-**Click Submit once.** After a successful submit the button reads
-**✅ Submitted!** but can still be clicked, and clicking it again creates a
-duplicate ticket. To start a new ticket, switch to another page and back.
+After a successful submit the button reads **✅ Submitted!** and can't be
+clicked again, so the same ticket can't be sent twice. For the next ticket,
+click **🆕 Start a new ticket** next to the success message. It clears the
+description, steps and priority, and keeps the diagnostics; click
+**🔄 Re-gather Diagnostics** if they need refreshing.
 
 If submitting fails (red message), use **📋 Copy Ticket** so you don't lose
 the report, then check section 7.
@@ -162,11 +164,11 @@ a Critical alarm.
 
 ### Running DeskSOS as administrator
 
-DeskSOS doesn't check your rights before running a fix. If a fix needs admin
-rights and you don't have them, it fails with an error such as "Access is
-denied" or "requires elevation". To run as administrator: close DeskSOS, open
-the Start menu, right-click **DeskSOS**, choose **Run as administrator**, and
-sign in again.
+If DeskSOS isn't running as administrator, the **Fix It** and **Processes**
+pages show a yellow warning at the top, because those actions will fail with
+"Access is denied" or "requires elevation". To run as administrator: close
+DeskSOS, open the Start menu, right-click **DeskSOS**, choose **Run as
+administrator**, and sign in again.
 
 **Renew IP**, **Reset Network** and **Clear Queue** are known to need
 administrator rights. Most other actions that change system settings
@@ -178,8 +180,11 @@ If an action fails with "Access is denied", that's the reason.
 
 ### Fix It
 
-Buttons run immediately, **with no confirmation**. The result appears below
-the buttons (✓ for success, ✗ with the error for failure).
+The page has two sections, **🌐 Quick Network Fixes** and **🖨️ Printer
+Rescue**. **Flush DNS** runs at once. The others ask first: the first click
+shows what will happen, then click **⚠️ Confirm …** or **Cancel**. The
+result appears below the buttons (✓ for success, ✗ with the error for
+failure).
 
 | Button | What it does | Admin | Caution |
 |---|---|---|---|
@@ -225,9 +230,10 @@ Output appears on the card; **✕** clears it.
 
 ### Processes and PowerShell
 
-- **Processes → Kill** ends the process at once, **with no confirmation and
-  no chance to save**. Make sure it's the right one. System processes and
-  other users' processes need admin rights, and killing them can crash Windows.
+- **Processes → Kill** asks first ("End *name*? Unsaved work in it is lost."),
+  then **⚠️ Confirm Kill** or **Cancel**. Make sure it's the right one. System
+  processes and other users' processes need admin rights, and killing them can
+  crash Windows.
 - **PowerShell → Execute** runs whatever you type, with your rights on this
   PC. Only run commands you understand.
 
@@ -280,10 +286,10 @@ account won't see each other.
 | "Running in a browser — local machine diagnostics are only available in the DeskSOS desktop app." | You've opened DeskSOS in a web browser. Use the installed app from the Start menu. |
 | A page stays on "Loading…" or shows ❌ with an error | Click **🔄 Refresh** (or the page's run button). Some checks take up to 30 seconds. |
 | A fix fails with "Access is denied" or "requires elevation" | Run DeskSOS as administrator (section 5). If you aren't allowed, ask your admin. |
-| Ticket submit shows a red error | Click **📋 Copy Ticket** to keep the report. If the error mentions a token, **Sign out** and sign in, then gather diagnostics and submit again. Otherwise check the network and tell your admin. |
+| Ticket submit shows a red error | Click **📋 Copy Ticket** to keep the report, then check the network and tell your admin. If your sign-in has expired, DeskSOS returns to the sign-in screen: sign in, gather diagnostics and submit again. |
 | **📤 Submit to DeskSOS** is greyed out | Fill in **Issue Description**. |
 | Submit/Copy section missing on the Ticket page | Click **🔍 Gather Diagnostics** first. |
-| Ticket text disappeared | It was cleared when you switched pages. Start again; copy the ticket before switching pages next time. |
+| Ticket text disappeared | Signing out or closing DeskSOS clears it. Switching pages doesn't. |
 | Chat shows an error or no channels | Check the network; sign out and back in. |
 | Remote: the other person isn't under Online Users | They must be signed in with their own account, on the **Remote** page, and have clicked **Connect**. |
 | Remote: stuck on "Establishing Connection" or a black screen | Both click **Disconnect**, then **Connect**, and try again. If it still fails, use chat or phone instead and report it. |

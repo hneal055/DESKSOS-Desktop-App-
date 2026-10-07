@@ -1,9 +1,16 @@
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:5000";
 
 let _token: string | null = null;
+let _onSessionExpired: (() => void) | null = null;
 
 export function setApiToken(token: string | null): void {
   _token = token;
+}
+
+// Called when the server rejects our token (it expired after 7 days, or the
+// secret was rotated), so the app can sign out instead of failing page by page
+export function setSessionExpiredHandler(handler: (() => void) | null): void {
+  _onSessionExpired = handler;
 }
 
 function getToken(): string | null {
@@ -22,6 +29,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    // A 401 on a signed-in request means the session is over; a 401 from the
+    // sign-in form itself just means wrong credentials
+    if (res.status === 401 && token && path !== "/auth/login") _onSessionExpired?.();
     throw new ApiError(res.status, body.error ?? "Request failed");
   }
   return res.json() as Promise<T>;

@@ -142,8 +142,8 @@ export default function TicketBuilder() {
         "NETWORK STATUS",
         dash,
         `Gateway (${diagData.gateway}): ${ping(diagData.gwPing)}`,
-        `DNS (8.8.8.8)             : ${ping(diagData.dnsPing)}`,
-        `Internet (1.1.1.1)        : ${ping(diagData.inetPing)}`,
+        `Ping 8.8.8.8 (Google)    : ${ping(diagData.dnsPing)}`,
+        `Ping 1.1.1.1 (Cloudflare): ${ping(diagData.inetPing)}`,
         "",
         "DISK SPACE",
         dash,
@@ -209,6 +209,17 @@ export default function TicketBuilder() {
     }
   };
 
+
+  // After a successful submit, start over for the next ticket. Diagnostics are
+  // kept (same PC); Re-gather refreshes them.
+  const startNewTicket = () => {
+    setIssueDesc("");
+    setStepsTried("");
+    setPriority("Medium");
+    setSubmitted(null);
+    setSubmitError(null);
+    setCopied(false);
+  };
 
   const ticketText = diagData ? buildTicketText() : null;
 
@@ -352,7 +363,8 @@ export default function TicketBuilder() {
             <button
               type="button"
               onClick={submitTicket}
-              disabled={submitting || !issueDesc.trim()}
+              // Once submitted, stays disabled so a second click can't create a duplicate
+              disabled={submitting || !!submitted || !issueDesc.trim()}
               className={`px-6 py-2 rounded-lg font-semibold transition ${
                 submitted
                   ? "bg-green-700 text-white cursor-default"
@@ -371,6 +383,13 @@ export default function TicketBuilder() {
           {submitted && (
             <div className="mt-3 bg-green-900/30 border border-green-600 rounded-lg p-3 text-green-400 text-sm">
               ✓ Ticket <span className="font-mono font-bold">{submitted.id}</span> created successfully.
+              <button
+                type="button"
+                onClick={startNewTicket}
+                className="ml-3 px-3 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-100 text-xs font-semibold"
+              >
+                🆕 Start a new ticket
+              </button>
             </div>
           )}
           {submitError && (

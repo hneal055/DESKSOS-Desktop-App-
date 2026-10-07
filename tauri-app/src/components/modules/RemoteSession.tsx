@@ -41,9 +41,28 @@ export default function RemoteSession() {
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  // The other party's account id for the whole session. A ref, not state:
+  // the socket handlers are created once in connect() and would otherwise
+  // see the value from that moment (null), sending answers and "end" to nobody.
+  const peerIdRef = useRef<string | null>(null);
+  // ICE candidates that arrive before the remote description is set would be
+  // rejected; hold them and add them once it is
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+
+  const flushPendingIce = async () => {
+    const pc = peerRef.current;
+    if (!pc) return;
+    const queued = pendingIceRef.current;
+    pendingIceRef.current = [];
+    for (const c of queued) {
+      try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch { /* stale candidate */ }
+    }
+  };
 
   // ─── Cleanup helper ───────────────────────────────────────────────────────
   const endSession = useCallback(() => {
+    peerIdRef.current = null;
+    pendingIceRef.current = [];
     peerRef.current?.close();
     peerRef.current = null;
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -95,19 +114,25 @@ export default function RemoteSession() {
     s.on("remote:offer", async ({ sessionId: sid, sdp }: { sessionId: string; sdp: RTCSessionDescriptionInit }) => {
       if (!peerRef.current) return;
       await peerRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      await flushPendingIce();
       const answer = await peerRef.current.createAnswer();
       await peerRef.current.setLocalDescription(answer);
-      s.emit("remote:answer", { sessionId: sid, targetUserId: sessionTarget?.id, sdp: answer });
+      s.emit("remote:answer", { sessionId: sid, targetUserId: peerIdRef.current, sdp: answer });
     });
 
     // ─── Receive WebRTC answer (user side: tech replied with answer) ──────
     s.on("remote:answer", async ({ sdp }: { sdp: RTCSessionDescriptionInit }) => {
-      await peerRef.current?.setRemoteDescription(new RTCSessionDescription(sdp));
+      if (!peerRef.current) return;
+      await peerRef.current.setRemoteDescription(new RTCSessionDescription(sdp));
+      await flushPendingIce();
     });
 
     // ─── ICE candidates ───────────────────────────────────────────────────
     s.on("remote:ice-candidate", async ({ candidate }: { candidate: RTCIceCandidateInit }) => {
-      try { await peerRef.current?.addIceCandidate(new RTCIceCandidate(candidate)); } catch { /* ignore */ }
+      const pc = peerRef.current;
+      if (!pc) return;
+      if (!pc.remoteDescription) { pendingIceRef.current.push(candidate); return; }
+      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { /* ignore */ }
     });
 
     // ─── Session ended by other party ─────────────────────────────────────
@@ -131,6 +156,8 @@ export default function RemoteSession() {
     setSessionTarget(target);
     setSessionRole("tech");
     setSessionState("requesting");
+    peerIdRef.current = target.id;
+    pendingIceRef.current = [];
 
     // Create PeerConnection now, ready to receive offer
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -162,6 +189,9 @@ export default function RemoteSession() {
     setIncomingReq(null);
     setSessionRole("user");
     setSessionState("sharing");
+    setSessionId(req.sessionId);
+    peerIdRef.current = req.techId;
+    pendingIceRef.current = [];
 
     socket.emit("remote:accept", { sessionId: req.sessionId, techId: req.techId });
 
@@ -197,8 +227,9 @@ export default function RemoteSession() {
 
   const stopSession = () => {
     if (!socket) return;
-    const targetId = sessionRole === "tech" ? sessionTarget?.id : (incomingReq?.techId ?? "");
-    socket.emit("remote:end", { sessionId, targetId });
+    // Tell the other side (the request was cleared on accept, so use the ref)
+    const targetId = peerIdRef.current;
+    if (targetId) socket.emit("remote:end", { sessionId, targetId });
     endSession();
   };
 
@@ -372,7 +403,7 @@ export default function RemoteSession() {
               <div className="text-white text-sm font-mono">{myName}</div>
             </div>
             <div className="bg-gray-700 p-3 rounded">
-              <div className="text-gray-400 text-xs mb-1">Session ID</div>
+              <div className="text-gray-400 text-xs mb-1">Account ID</div>
               <div className="text-white text-sm font-mono">{myId}</div>
             </div>
           </div>
