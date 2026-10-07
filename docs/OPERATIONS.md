@@ -507,36 +507,77 @@ DHCP and can change. If user PCs can't resolve `FORD-DC01`, give this PC a DHCP
 reservation in the router, then switch both settings to `https://192.168.12.196:5443`.
 The certificate already covers the IP.
 
-### 6.2 Build
+### 6.2 Build a signed release
 
-1. Increase `version` in `tauri-app/src-tauri/tauri.conf.json` (e.g. `1.0.0` → `1.0.1`).
-2. Build:
+Releases are signed with the **DeskSOS Internal Code Signing** certificate
+(decision D4, revised 2026-10-07: a self-made certificate for the local office;
+revisit Azure Artifact Signing before any wider rollout). It lives in the
+Administrator account's certificate store on FORD-DC01, and its private key is
+**non-exportable**, so it can't be copied off this PC. It expires in 2031.
+
+1. Increase `version` in `tauri-app/src-tauri/tauri.conf.json` (e.g. `1.1.0` → `1.1.1`).
+2. Build. This needs PowerShell 7, and takes several minutes:
    ```powershell
-   cd C:\Projects\DESKSOS-Desktop\tauri-app
-   npm ci
-   npm run tauri build
+   & "C:\Program Files\PowerShell\7\pwsh.exe" -NoProfile -File C:\Projects\DESKSOS-Desktop\tauri-app\scripts\build-release.ps1
    ```
-3. Collect the installer from `tauri-app\src-tauri\target\release\bundle\`:
-   - `nsis\DeskSOS_<version>_x64-setup.exe`: **recommended**. It installs
-     WebView2 if it's missing.
-   - `msi\DeskSOS_<version>_x64_en-US.msi`: for Group Policy or Intune deployment.
+   The script:
+   - installs packages if they changed
+   - builds with signing on (SHA-256, timestamped by DigiCert's public timestamp server; `-NoTimestamp` builds offline)
+   - checks every output is signed by the DeskSOS certificate
+   - creates **`release\DeskSOS-<version>\`** with:
+     - the setup `.exe` (**recommended**: it installs WebView2 if missing) and the `.msi`
+     - `desksos-ca.crt` and `desksos-codesign.cer` (both public)
+     - `Trust-DeskSOS.ps1`
+     - `SHA256SUMS.txt`
+3. **If the certificate is missing** (new PC, new Windows account, or after 2031),
+   create a new one. Every office PC must then trust the new one, so run
+   `Trust-DeskSOS.ps1` again from the new release folder:
+   ```powershell
+   New-SelfSignedCertificate -Type CodeSigningCert -Subject 'CN=DeskSOS Internal Code Signing, O=DeskSOS, OU=FORD-DC01' `
+       -CertStoreLocation Cert:\CurrentUser\My -KeyAlgorithm RSA -KeyLength 3072 -HashAlgorithm SHA256 `
+       -KeyExportPolicy NonExportable -NotAfter (Get-Date).AddYears(5)
+   ```
 
 ### 6.3 Install on a user's PC
 
-1. **Trust the server certificate (one time per PC).** On the server, run
-   `mkcert -CAROOT` and copy **only** `rootCA.pem` from that folder. Never copy
-   `rootCA-key.pem`. On the user's PC, from an elevated window:
+1. **Copy the release folder** to the PC: a USB stick or a network share.
+2. **Trust DeskSOS (one time per PC).** The official fingerprints are below.
+   Read them **here, in the repository on GitHub**, not from the copied
+   folder: a tampered USB stick or share could change the folder, but not
+   this page.
+
+   | Certificate | Fingerprint (SHA-1 thumbprint) |
+   |---|---|
+   | DeskSOS server CA (`desksos-ca.crt`) | `E2EC9250F1D17D362FFAEA3C20C28C530418C4BB` |
+   | DeskSOS code signing (`desksos-codesign.cer`, also signs the setup script) | `B526E5D2BBE118C72EEA6F619F6465B2F398435A` |
+
+   Update this table if either certificate is ever recreated (§6.2 step 3). `build-release.ps1` prints both fingerprints at the end of every build.
+
+   In the folder, open PowerShell **as administrator**. First check who
+   signed the setup script. The thumbprint must be the code-signing one above:
    ```powershell
-   Import-Certificate -FilePath .\rootCA.pem -CertStoreLocation Cert:\LocalMachine\Root
+   (Get-AuthenticodeSignature .\Trust-DeskSOS.ps1).SignerCertificate.Thumbprint
    ```
-   Check by opening `https://FORD-DC01:5443/health` in Edge on that PC. It
-   should show `{"status":"ok",...}` with no certificate warning.
-2. **Run the installer.** It isn't code-signed, so SmartScreen shows "Windows
-   protected your PC". Choose **More info → Run anyway**.
-3. **Create their account** in the backend. Don't share the admin login.
-4. **Launch** from Start menu → **DeskSOS** and log in.
-5. **Admin rights:** Renew IP, Reset Network, Clear Queue and the AD tools need
-   **Run as administrator**. The AD tools also need a domain-joined PC.
+   Then run it. It shows both fingerprints and changes nothing until you type
+   `YES` (`-Yes` skips the prompt, for scripted use):
+   ```powershell
+   powershell -ExecutionPolicy Bypass -File .\Trust-DeskSOS.ps1
+   ```
+   This adds the DeskSOS server CA to Trusted Root, and the code-signing
+   certificate to Trusted Root and Trusted Publishers. Both are public
+   certificates, and running it twice is harmless. `-Check` reports the PC's
+   state, and passes only when the trust applies to all users. `-Remove`
+   undoes it for the PC and the current user. Then **close every browser
+   window**, including the tray icon.
+3. **Run `DeskSOS_<version>_x64-setup.exe`.** Windows shows **DeskSOS** as the
+   verified publisher.
+   - **SmartScreen:** it judges downloaded files by reputation. If the
+     installer arrived through a browser or email download, you may still see
+     "Windows protected your PC" → **More info → Run anyway**.
+   - **Avoiding it:** copying the folder by USB stick or network share avoids that.
+4. **Create their account** in the backend. Don't share the admin login.
+5. **Launch** from Start menu → **DeskSOS** and log in. How to use it: [TECHNICIAN-GUIDE.md](TECHNICIAN-GUIDE.md).
+6. **Admin rights:** Renew IP, Reset Network and Clear Queue need **Run as administrator**.
 
 ### 6.4 Update
 

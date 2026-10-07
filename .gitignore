@@ -48,3 +48,6 @@ backend/data/*.db-shm
 backend/data/*.db
 backend/data/*.db-*
 .claude/settings.local.json
+
+# Release folders built by tauri-app/scripts/build-release.ps1 (installers, certs)
+release/
