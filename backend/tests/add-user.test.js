@@ -46,6 +46,8 @@ describe("scripts/add-user.js", () => {
     for (const a of [
       ["--name", "Dup", "--email", "ADMIN@desksos.com"],          // duplicate (case-insensitive)
       ["--name", "X", "--email", "not-an-email"],
+      ["--name", "X", "--email", "jane@example..com"],            // same email rule as sign-in
+      ["--role", "admin"],                                         // role without an account to create
       ["--name", "X", "--email", "x@example.com", "--role", "owner"],
       ["--email", "x@example.com"],                                // missing name
       ["--name", "X", "--email", "x@example.com", "--prodd"],      // mistyped option
@@ -55,6 +57,13 @@ describe("scripts/add-user.js", () => {
       expect(run(...a).status).toBe(1);
     }
     expect(query("SELECT COUNT(*) AS c FROM users")[0].c).toBe(1);
+  });
+
+  it("refuses --remove combined with options from another mode, and deletes nothing", () => {
+    run("--name", "Jane", "--email", "jane@example.com");
+    expect(run("--remove", "jane@example.com", "--role", "owner").status).toBe(1);
+    expect(run("--remove", "jane@example.com", "--list").status).toBe(1);
+    expect(query("SELECT COUNT(*) AS c FROM users WHERE email = 'jane@example.com'")[0].c).toBe(1);
   });
 
   it("removes an account, but never the only admin", () => {

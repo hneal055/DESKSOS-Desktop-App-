@@ -32,6 +32,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 const Database = require("better-sqlite3");
 const bcrypt = require("bcryptjs");
+const { z } = require("zod");
 
 const ROLES = ["technician", "admin"];
 const usage = [
@@ -61,7 +62,9 @@ for (let i = 0; i < args.length; i++) {
   console.error(`Unknown argument: ${a}\n${usage}`);
   process.exit(1);
 }
-const modes = [opts.list, opts.remove !== undefined, opts.name !== undefined || opts.email !== undefined].filter(Boolean).length;
+const adding = opts.name !== undefined || opts.email !== undefined || opts.role !== undefined;
+const modes = [opts.list, opts.remove !== undefined, adding].filter(Boolean).length;
+// Exactly one mode, and no option from another mode (e.g. --remove x --role y)
 if (modes !== 1) { console.error(usage); process.exit(1); }
 
 const dataDir = path.join(__dirname, "..", "data");
@@ -83,14 +86,22 @@ if (opts.list) {
 
 // ── Remove ───────────────────────────────────────────────────────────────────
 if (opts.remove !== undefined) {
-  const user = findByEmail(opts.remove);
-  if (!user) { console.error(`No account with email ${opts.remove} in ${dbPath}. Use --list to see accounts.`); process.exit(1); }
-  if (user.role === "admin") {
-    const admins = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'").get().c;
-    if (admins <= 1) { console.error("That's the only admin account; create another admin first."); process.exit(1); }
-  }
-  // Tickets keep their history: only the user row goes
-  db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+  // Lookup, last-admin check and delete in one write transaction (IMMEDIATE
+  // takes the write lock first), so two removals at once can't both pass the
+  // check and leave no admin
+  const result = db.transaction(() => {
+    const user = findByEmail(opts.remove);
+    if (!user) return { error: `No account with email ${opts.remove} in ${dbPath}. Use --list to see accounts.` };
+    if (user.role === "admin") {
+      const admins = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin'").get().c;
+      if (admins <= 1) return { error: "That's the only admin account; create another admin first." };
+    }
+    // Tickets keep their history: only the user row goes
+    db.prepare("DELETE FROM users WHERE id = ?").run(user.id);
+    return { user };
+  }).immediate();
+  if (result.error) { console.error(result.error); process.exit(1); }
+  const user = result.user;
   console.log(`Removed ${user.email} (${user.role}) from ${dbPath}.`);
   console.log("New sign-ins are refused now. A session already signed in stays valid until it expires (up to 7 days);");
   console.log("to end every session at once: pwsh scripts/rotate-secret.ps1 -Restart  (signs everyone out)");
@@ -104,7 +115,8 @@ const role = (opts.role ?? "technician").trim().toLowerCase();
 const problems = [];
 if (!name) problems.push("--name is required");
 if (name.length > 100) problems.push("--name must be at most 100 characters");
-if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) problems.push("--email must be a valid email address");
+// The same email rule as sign-in (zod), so every account created can sign in
+if (!z.string().email().safeParse(email).success) problems.push("--email must be a valid email address");
 if (!ROLES.includes(role)) problems.push(`--role must be one of ${ROLES.join(", ")}`);
 if (problems.length) { console.error(problems.join("\n") + "\n" + usage); process.exit(1); }
 if (findByEmail(email)) { console.error(`An account with email ${email} already exists. Use reset-password.js to give it a new password.`); process.exit(1); }
