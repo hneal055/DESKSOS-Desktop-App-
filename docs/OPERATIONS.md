@@ -425,7 +425,7 @@ Once section 3 is done, nothing needs to be started by hand.
 | Live CPU/memory | `pm2 monit` |
 | Restart without downtime | `pm2 reload desksos-backend` |
 | Start or restart (preferred: no window involved) | `Start-ScheduledTask "DeskSOS Backend Startup"` |
-| Stop on purpose | `New-Item logs\MAINTENANCE -Force` **first** (or self-healing restarts it within about 10 minutes), then `pm2 stop desksos-backend`. Afterwards: `pm2 start desksos-backend; Remove-Item logs\MAINTENANCE` |
+| Stop on purpose | `New-Item logs\MAINTENANCE -Force` **first** (or self-healing restarts it within about 10 minutes), then `pm2 stop desksos-backend`. To finish: `Start-ScheduledTask "DeskSOS Backend Startup"`, check `/health`, then `Remove-Item logs\MAINTENANCE` |
 | Deploy new code | `git pull; npm ci; pwsh scripts/start-production.ps1` (build → backup → reload) |
 | Manual backup (production DB) | `pwsh scripts/backup-prod.ps1` (`npm run backup` backs up the dev DB) |
 | Change a user's password | `pwsh scripts/change-password.ps1 -Email <user>` |
