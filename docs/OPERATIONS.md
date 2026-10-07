@@ -252,7 +252,9 @@ From an elevated window:
 pwsh scripts/register-tasks.ps1 -BackendAutostart -HealthUrl https://FORD-DC01:5443/health
 ```
 
-**Alerts** go to Teams and/or email. Both use **user** environment variables,
+**Alerts** go to Discord, Teams and/or email. For **Discord**, set
+`ALERT_DISCORD_WEBHOOK_URL` to a channel webhook (Edit Channel → Integrations
+→ Webhooks), saved with the same pop-up method as Teams below. Both use **user** environment variables,
 which are shared with DeskSOS Enterprise's monitor, so one setup covers both
 products. An alert counts as delivered if any channel succeeds; a failing
 channel is logged in `logs/monitor.log`.
