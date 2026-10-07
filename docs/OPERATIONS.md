@@ -252,8 +252,22 @@ From an elevated window:
 pwsh scripts/register-tasks.ps1 -BackendAutostart -HealthUrl https://FORD-DC01:5443/health
 ```
 
-For email alerts, set these **user** environment variables before the monitor
-first runs (a Gmail app password works):
+**Alerts** go to Teams and/or email. Both use **user** environment variables,
+which are shared with DeskSOS Enterprise's monitor, so one setup covers both
+products. An alert counts as delivered if any channel succeeds; a failing
+channel is logged in `logs/monitor.log`.
+
+For **Teams**, create a webhook in the channel: ⋯ → **Workflows** → **"Send
+webhook alerts to a channel"**. Copy its URL, then save it with a pop-up box,
+because hidden prompts in the VS Code terminal don't accept pastes:
+
+```powershell
+$c = Get-Credential -UserName 'teams' -Message 'Paste the Teams webhook URL'
+[Environment]::SetEnvironmentVariable('ALERT_TEAMS_WEBHOOK_URL', $c.GetNetworkCredential().Password, 'User')
+Remove-Variable c
+```
+
+For **email** (a Gmail app password works):
 
 ```powershell
 foreach ($kv in @{ ALERT_SMTP_HOST='smtp.gmail.com'; ALERT_SMTP_PORT='587';

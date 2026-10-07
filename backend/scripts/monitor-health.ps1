@@ -13,14 +13,16 @@
     pwsh scripts/monitor-health.ps1 -Url https://desksos-server:5000/health
 
 .NOTES
-    Email alerts are sent when these environment variables are set (user-level
-    variables work for a scheduled task running as you):
-      ALERT_SMTP_HOST   e.g. smtp.gmail.com
-      ALERT_SMTP_PORT   default 587 (STARTTLS)
-      ALERT_SMTP_USER   SMTP login, also used as the From address
-      ALERT_SMTP_PASS   SMTP password / app password
-      ALERT_TO          recipient address
-    Without them, alerts are only written to logs/monitor.log.
+    Alert channels (user-level environment variables work for a scheduled task
+    running as you; the same ones DeskSOS Enterprise's monitor uses):
+      Teams:  ALERT_TEAMS_WEBHOOK_URL   Teams Workflows webhook ("Send webhook
+                                        alerts to a channel") or incoming webhook
+      Email:  ALERT_SMTP_HOST   e.g. smtp.gmail.com
+              ALERT_SMTP_PORT   default 587 (STARTTLS)
+              ALERT_SMTP_USER   SMTP login, also used as the From address
+              ALERT_SMTP_PASS   SMTP password / app password
+              ALERT_TO          recipient address
+    Without any, alerts are only written to logs/monitor.log.
 #>
 param(
     [string]$Url = ($env:DESKSOS_HEALTH_URL ?? "http://localhost:5000/health"),
@@ -44,24 +46,55 @@ function Write-Log([string]$Message) {
     Write-Host $line
 }
 
-# Returns $false only when an email was attempted and failed, so the caller can
-# keep the previous state and retry the alert on the next run.
+function Send-Teams([string]$Subject, [string]$Body) {
+    # Adaptive Card message: accepted by Teams Workflows webhooks and by the
+    # older incoming-webhook connectors
+    $card = @{
+        type        = "message"
+        attachments = @(@{
+                contentType = "application/vnd.microsoft.card.adaptive"
+                content     = @{
+                    '$schema' = "http://adaptivecards.io/schemas/adaptive-card.json"
+                    type      = "AdaptiveCard"
+                    version   = "1.4"
+                    body      = @(
+                        @{ type = "TextBlock"; size = "Medium"; weight = "Bolder"; text = "[DeskSOS Desktop] $Subject"; wrap = $true }
+                        @{ type = "TextBlock"; text = $Body; wrap = $true }
+                    )
+                }
+            })
+    }
+    Invoke-RestMethod -Uri $env:ALERT_TEAMS_WEBHOOK_URL -Method Post -ContentType "application/json" `
+        -Body ($card | ConvertTo-Json -Depth 10) -TimeoutSec 15 -ErrorAction Stop | Out-Null
+}
+
+function Send-Email([string]$Subject, [string]$Body) {
+    $cred = [pscredential]::new($env:ALERT_SMTP_USER, (ConvertTo-SecureString $env:ALERT_SMTP_PASS -AsPlainText -Force))
+    Send-MailMessage -SmtpServer $env:ALERT_SMTP_HOST -Port ([int]($env:ALERT_SMTP_PORT ?? 587)) -UseSsl `
+        -Credential $cred -From $env:ALERT_SMTP_USER -To $env:ALERT_TO `
+        -Subject "[DeskSOS] $Subject" -Body $Body -WarningAction SilentlyContinue -ErrorAction Stop
+}
+
+# Returns $false only if every configured channel failed, so the caller keeps
+# the old state and the alert is retried on the next run. If at least one
+# channel delivered it, someone has been told: retrying would only repeat the
+# alert on the working channel every run (e.g. Teams fine, email broken).
 function Send-Alert([string]$Subject, [string]$Body) {
     Write-Log "ALERT: $Subject"
-    if (-not ($env:ALERT_SMTP_HOST -and $env:ALERT_TO -and $env:ALERT_SMTP_USER)) {
-        Write-Log "  (email not configured; set ALERT_SMTP_* and ALERT_TO to receive alerts)"
-        return $true
+    $channels = 0; $delivered = 0
+    if ($env:ALERT_TEAMS_WEBHOOK_URL) {
+        $channels++
+        try { Send-Teams $Subject $Body; $delivered++; Write-Log "  Sent to Teams" }
+        catch { Write-Log "  Teams failed: $($_.Exception.Message)" }
     }
-    try {
-        $cred = [pscredential]::new($env:ALERT_SMTP_USER, (ConvertTo-SecureString $env:ALERT_SMTP_PASS -AsPlainText -Force))
-        Send-MailMessage -SmtpServer $env:ALERT_SMTP_HOST -Port ([int]($env:ALERT_SMTP_PORT ?? 587)) -UseSsl `
-            -Credential $cred -From $env:ALERT_SMTP_USER -To $env:ALERT_TO `
-            -Subject "[DeskSOS] $Subject" -Body $Body -WarningAction SilentlyContinue -ErrorAction Stop
-        return $true
-    } catch {
-        Write-Log "  Email failed: $($_.Exception.Message) (will retry next run)"
-        return $false
+    if ($env:ALERT_SMTP_HOST -and $env:ALERT_TO -and $env:ALERT_SMTP_USER) {
+        $channels++
+        try { Send-Email $Subject $Body; $delivered++; Write-Log "  Sent by email" }
+        catch { Write-Log "  Email failed: $($_.Exception.Message)" }
     }
+    if ($channels -eq 0) { Write-Log "  (no alert channel configured; set ALERT_TEAMS_WEBHOOK_URL or ALERT_SMTP_*)"; return $true }
+    if ($delivered -eq 0) { Write-Log "  No channel delivered the alert (will retry next run)"; return $false }
+    return $true
 }
 
 $state = if (Test-Path $stateFile) { Get-Content $stateFile -Raw | ConvertFrom-Json -AsHashtable } else { @{} }
