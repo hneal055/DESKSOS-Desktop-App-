@@ -140,6 +140,7 @@ the backend off the network (FORD-DC01 slept overnight on 2026-10-06):
 ```powershell
 powercfg /change standby-timeout-ac 0
 powercfg /change hibernate-timeout-ac 0
+powercfg /h off     # also turns off Fast Startup, so a shutdown and power-on is a real boot and the startup tasks run
 ```
 
 ### 3.2 Remove the stale `JWT_SECRET` user variable
@@ -198,12 +199,22 @@ From an elevated window:
 
 ```powershell
 New-NetFirewallRule -DisplayName "DeskSOS Backend" -Direction Inbound -Protocol TCP `
-    -LocalPort 5443 -Action Allow -Profile Domain,Private
+    -LocalPort 5443 -Action Allow -Profile Any -RemoteAddress LocalSubnet
 ```
 
-The rule covers Private and Domain networks only. Make sure this PC's Wi-Fi
-network is set to **Private** (Settings → Network & internet → Wi-Fi → network
-properties), or other PCs can't connect.
+The rule admits **only PCs on the local network** (`LocalSubnet`, decision D3),
+on every network profile. It keeps working if Windows switches the Wi-Fi to
+Public, but the internet can't reach it. An older rule can be tightened in
+place:
+
+```powershell
+Set-NetFirewallRule -DisplayName 'DeskSOS Backend' -RemoteAddress LocalSubnet -Profile Any
+```
+
+If Windows ever showed "Node.js wants to access the network", its
+"Node.js JavaScript Runtime" rules open every Node port to any address and
+override this one. Limit them too:
+`Get-NetFirewallRule -DisplayName 'Node.js JavaScript Runtime' | Set-NetFirewallRule -EdgeTraversalPolicy Block -RemoteAddress LocalSubnet`
 
 ### 3.6 First start and verification
 
