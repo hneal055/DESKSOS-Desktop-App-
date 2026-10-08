@@ -467,6 +467,12 @@ Step 1 matters: copying `desksos-prod.db` by hand misses recent changes that
 are still in the `-wal` file. To undo a bad restore, restore the backup taken
 in step 1 the same way.
 
+**Off-machine copies.** Every night at 03:15, an encrypted copy of the newest
+backup goes to OneDrive (`DeskSOS-Backups\Desktop\`; 14 daily and 8 weekly are kept). The task that does this is
+registered by the Enterprise repository. To restore from one of these copies,
+first decrypt it with `offsite-restore.ps1`, then restore the result as above.
+The steps are in the Enterprise runbook, `C:\Projects\DESKSOS\docs\OPERATIONS.md` §5.4.
+
 ### 4.5 Restore drill (quarterly)
 
 This proves a backup really restores, without touching production:
